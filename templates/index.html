@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Institutional Algo Trading Terminal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            terminal: {
+              bg: '#0f172a',
+              panel: '#111827',
+              raised: '#1e293b',
+              line: '#334155',
+              text: '#e2e8f0',
+              muted: '#94a3b8',
+              emerald: '#10b981',
+              rose: '#fb7185',
+              amber: '#f59e0b',
+              indigo: '#818cf8'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { background:#0f172a; color:#e2e8f0; font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
+    .panel { background:#111827; border:1px solid #334155; border-radius:10px; }
+    .tab { border:1px solid transparent; color:#94a3b8; }
+    .tab.active { border-color:rgba(16,185,129,.6); color:#10b981; background:rgba(16,185,129,.08); }
+    .view { display:none; }
+    .view.active { display:block; }
+    .scrollbar::-webkit-scrollbar { width:10px; height:10px; }
+    .scrollbar::-webkit-scrollbar-thumb { background:#334155; border-radius:999px; }
+    .flash-green { animation: greenFlash 700ms ease; }
+    .flash-red { animation: redFlash 700ms ease; }
+    @keyframes greenFlash { from { box-shadow: inset 0 0 0 999px rgba(16,185,129,.14); } to { box-shadow: inset 0 0 0 999px transparent; } }
+    @keyframes redFlash { from { box-shadow: inset 0 0 0 999px rgba(251,113,133,.14); } to { box-shadow: inset 0 0 0 999px transparent; } }
+  </style>
+</head>
+<body>
+  <div id="toast" class="fixed right-4 top-4 z-50 hidden max-w-md rounded-lg border border-terminal-line bg-terminal-raised px-4 py-3 text-sm shadow-xl"></div>
+  <div class="min-h-screen">
+    <header class="sticky top-0 z-30 border-b border-terminal-line bg-terminal-bg/95 px-5 py-4 backdrop-blur">
+      <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <div class="text-xs uppercase tracking-[0.28em] text-terminal-muted">Institutional Rule-Based Trading Terminal</div>
+          <h1 class="mt-1 text-2xl font-semibold text-terminal-text">Interactive Algo Cockpit</h1>
+        </div>
+        <nav class="flex flex-wrap gap-2">
+          <button class="tab active rounded-md px-4 py-2 text-sm" data-view="dashboard">Core Dashboard</button>
+          <button class="tab rounded-md px-4 py-2 text-sm" data-view="reports">Dual Reports</button>
+          <button class="tab rounded-md px-4 py-2 text-sm" data-view="playbook">Strategy Playbook</button>
+          <button class="tab rounded-md px-4 py-2 text-sm" data-view="portfolio">Portfolio Terminal</button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="p-5 lg:p-8">
+      <section id="dashboard" class="view active">
+        <div class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+          <div class="panel p-5">
+            <div class="mb-4 flex items-center justify-between">
+              <div>
+                <h2 class="text-xl font-semibold">Zerodha Connectivity</h2>
+                <p id="connectivityText" class="mt-1 text-sm text-terminal-muted">Checking session...</p>
+              </div>
+              <span id="connectivityBadge" class="rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-widest"></span>
+            </div>
+            <div class="grid gap-3 md:grid-cols-4">
+              <input id="apiKey" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="API Key" />
+              <input id="apiSecret" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="API Secret" type="password" />
+              <input id="apiToken" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Request / Access Token" type="password" />
+              <button id="connectBtn" class="rounded-md border border-terminal-emerald/60 bg-terminal-emerald/10 px-4 py-3 text-sm font-semibold text-terminal-emerald">Authenticate Session</button>
+            </div>
+          </div>
+
+          <div class="panel p-5">
+            <h2 class="text-xl font-semibold">Import New NSE Asset</h2>
+            <p class="mt-1 text-sm text-terminal-muted">Downloads five years of daily yfinance data, preprocesses it, and refreshes both reports.</p>
+            <div class="mt-4 flex gap-3">
+              <input id="tickerInput" class="w-full rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Example: SBIN.NS" />
+              <button id="downloadBtn" class="shrink-0 rounded-md border border-terminal-amber/60 bg-terminal-amber/10 px-4 py-3 text-sm font-semibold text-terminal-amber">Execute Download</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 grid gap-4 md:grid-cols-4">
+          <div class="panel p-4"><div class="text-xs uppercase tracking-widest text-terminal-muted">Initial Capital</div><div id="initialCapital" class="mt-2 text-2xl font-semibold text-terminal-amber"></div></div>
+          <div class="panel p-4"><div class="text-xs uppercase tracking-widest text-terminal-muted">Current Balance</div><div id="cashBalance" class="mt-2 text-2xl font-semibold text-terminal-text"></div></div>
+          <div class="panel p-4"><div class="text-xs uppercase tracking-widest text-terminal-muted">Active Positions</div><div id="activePositions" class="mt-2 text-2xl font-semibold text-terminal-indigo"></div></div>
+          <div id="pnlCard" class="panel p-4"><div class="text-xs uppercase tracking-widest text-terminal-muted">Open Unrealized P&L</div><div id="openPnl" class="mt-2 text-2xl font-semibold"></div></div>
+        </div>
+      </section>
+
+      <section id="reports" class="view">
+        <div class="mb-5 grid gap-5 xl:grid-cols-2">
+          <div class="panel p-4">
+            <div class="mb-3 flex items-center justify-between">
+              <div><h2 class="text-xl font-semibold">Strategy Sharpe vs Drawdown</h2><p class="text-sm text-terminal-muted">Low drawdown and high Sharpe cluster in the top-left zone.</p></div>
+              <button id="refreshReports" class="rounded-md border border-terminal-line px-3 py-2 text-sm text-terminal-muted">Refresh</button>
+            </div>
+            <div class="h-[360px]"><canvas id="riskChart"></canvas></div>
+          </div>
+          <div class="panel p-4">
+            <h2 class="mb-3 text-xl font-semibold">Global Strategy Summary</h2>
+            <div class="scrollbar max-h-[360px] overflow-auto">
+              <table class="min-w-[1300px] w-full text-left text-xs">
+                <thead class="sticky top-0 bg-terminal-panel text-terminal-muted">
+                  <tr id="globalHead"></tr>
+                </thead>
+                <tbody id="globalBody" class="divide-y divide-terminal-line"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel p-4">
+          <div class="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div><h2 class="text-xl font-semibold">Asset Performance Leaderboard</h2><p class="text-sm text-terminal-muted">Granular stock-level winners by strategy rule.</p></div>
+            <input id="assetSearch" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Filter by ticker..." />
+          </div>
+          <div class="scrollbar max-h-[470px] overflow-auto">
+            <table class="min-w-[1000px] w-full text-left text-xs">
+              <thead class="sticky top-0 bg-terminal-panel text-terminal-muted">
+                <tr id="assetHead"></tr>
+              </thead>
+              <tbody id="assetBody" class="divide-y divide-terminal-line"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="playbook" class="view">
+        <div class="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
+          <div>
+            <div class="mb-4"><h2 class="text-xl font-semibold">Strategy Toggle Matrix</h2><p class="text-sm text-terminal-muted">Activate or deactivate the rules the selector and bot may process.</p></div>
+            <div id="strategyGrid" class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3"></div>
+          </div>
+          <div class="panel p-5">
+            <h2 class="text-xl font-semibold">Custom Strategy Code Injector</h2>
+            <p class="mt-1 text-sm text-terminal-muted">Use existing indicator columns such as Close, EMA_21, RSI_14, MACD_Hist, Bollinger_Upper, Volume_Z_Score.</p>
+            <input id="customName" class="mt-4 w-full rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Strategy Name" />
+            <textarea id="customRule" class="mt-3 h-52 w-full rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 font-mono text-sm outline-none focus:border-terminal-emerald" placeholder="Example: (RSI_14 < 35) & (Close > EMA_21)"></textarea>
+            <button id="injectBtn" class="mt-3 w-full rounded-md border border-terminal-emerald/60 bg-terminal-emerald/10 px-4 py-3 text-sm font-semibold text-terminal-emerald">Compile and Inject Strategy</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="portfolio" class="view">
+        <div class="mb-5 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+          <div class="panel p-5">
+            <h2 class="text-xl font-semibold">Manual Order Ticket</h2>
+            <div class="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-1">
+              <input id="orderTicker" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Ticker e.g. RELIANCE" />
+              <select id="orderSide" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald"><option>BUY</option><option>SELL</option></select>
+              <input id="orderQty" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Quantity" type="number" value="1" min="1" />
+              <button id="placeOrder" class="rounded-md border border-terminal-emerald/60 bg-terminal-emerald/10 px-4 py-3 text-sm font-semibold text-terminal-emerald">Submit Order Payload</button>
+            </div>
+            <button id="runScan" class="mt-3 w-full rounded-md border border-terminal-amber/60 bg-terminal-amber/10 px-4 py-3 text-sm font-semibold text-terminal-amber">Run Strategy Signal Scan</button>
+          </div>
+          <div class="panel p-5">
+            <h2 class="mb-3 text-xl font-semibold">Active Holdings</h2>
+            <div class="scrollbar max-h-[360px] overflow-auto">
+              <table class="min-w-[850px] w-full text-left text-xs">
+                <thead class="bg-terminal-panel text-terminal-muted">
+                  <tr><th class="px-3 py-2">Ticker</th><th class="px-3 py-2 text-right">Quantity</th><th class="px-3 py-2 text-right">Buy Price</th><th class="px-3 py-2 text-right">Current Value</th><th class="px-3 py-2 text-right">P&L</th><th class="px-3 py-2 text-right">P&L %</th></tr>
+                </thead>
+                <tbody id="holdingsBody" class="divide-y divide-terminal-line"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="panel overflow-hidden">
+          <div class="border-b border-terminal-line px-4 py-3 text-sm font-semibold">Live Order Stream Log</div>
+          <pre id="orderLog" class="scrollbar h-[360px] overflow-auto whitespace-pre-wrap bg-[#020617] p-4 font-mono text-xs leading-5 text-terminal-muted"></pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const app = { state: {{ initial_state | safe }}, riskChart: null };
+
+    const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value || 0);
+    const num = (value, digits = 2) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
+    function toast(message, ok = true) {
+      const box = document.getElementById('toast');
+      box.textContent = message;
+      box.className = `fixed right-4 top-4 z-50 max-w-md rounded-lg border px-4 py-3 text-sm shadow-xl ${ok ? 'border-terminal-emerald bg-terminal-raised text-terminal-emerald' : 'border-terminal-rose bg-terminal-raised text-terminal-rose'}`;
+      box.classList.remove('hidden');
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => box.classList.add('hidden'), 3600);
+    }
+
+    async function api(url, body = null, method = 'POST') {
+      const options = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) options.body = JSON.stringify(body);
+      const response = await fetch(url, options);
+      const payload = await response.json();
+      if (!response.ok || payload.ok === false) throw new Error(payload.error || payload.message || 'Request failed');
+      if (payload.state) app.state = payload.state;
+      return payload;
+    }
+
+    async function refreshState() {
+      const response = await fetch('/api/state');
+      app.state = await response.json();
+      renderAll();
+    }
+
+    function switchView(view) {
+      document.querySelectorAll('.view').forEach(node => node.classList.toggle('active', node.id === view));
+      document.querySelectorAll('.tab').forEach(node => node.classList.toggle('active', node.dataset.view === view));
+      if (view === 'reports') renderRiskChart();
+    }
+
+    function renderDashboard() {
+      const account = app.state.account || {};
+      const connected = app.state.zerodha?.connected;
+      document.getElementById('connectivityText').textContent = connected ? 'CONNECTED - LIVE NODE' : 'DISCONNECTED - PAPER MODE ACTIVE';
+      const badge = document.getElementById('connectivityBadge');
+      badge.textContent = connected ? 'LIVE' : 'PAPER';
+      badge.className = `rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-widest ${connected ? 'border-terminal-emerald text-terminal-emerald' : 'border-terminal-rose text-terminal-rose'}`;
+      document.getElementById('initialCapital').textContent = money(account.initial_capital);
+      document.getElementById('cashBalance').textContent = money(account.cash_balance);
+      document.getElementById('activePositions').textContent = account.active_positions || 0;
+      const pnl = Number(account.unrealized_pnl || 0);
+      const pnlEl = document.getElementById('openPnl');
+      pnlEl.textContent = `${pnl >= 0 ? '+' : ''}${money(pnl)}`;
+      pnlEl.className = `mt-2 text-2xl font-semibold ${pnl >= 0 ? 'text-terminal-emerald' : 'text-terminal-rose'}`;
+    }
+
+    function renderTable(headId, bodyId, rows, filter = '') {
+      const head = document.getElementById(headId);
+      const body = document.getElementById(bodyId);
+      const visibleRows = filter ? rows.filter(row => String(row.Ticker || '').toLowerCase().includes(filter.toLowerCase())) : rows;
+      const columns = visibleRows[0] ? Object.keys(visibleRows[0]) : [];
+      head.innerHTML = columns.map(col => `<th class="px-3 py-2">${col}</th>`).join('');
+      body.innerHTML = visibleRows.map(row => `<tr class="hover:bg-terminal-line/30">${columns.map(col => `<td class="px-3 py-2">${row[col]}</td>`).join('')}</tr>`).join('');
+    }
+
+    function renderReports() {
+      const reports = app.state.reports || { global_summary: [], asset_leaderboard: [] };
+      renderTable('globalHead', 'globalBody', reports.global_summary || []);
+      renderTable('assetHead', 'assetBody', reports.asset_leaderboard || [], document.getElementById('assetSearch').value);
+      renderRiskChart();
+    }
+
+    function renderRiskChart() {
+      const canvas = document.getElementById('riskChart');
+      if (!canvas || !window.Chart) return;
+      const rows = app.state.reports?.global_summary || [];
+      if (app.riskChart) app.riskChart.destroy();
+      app.riskChart = new Chart(canvas, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'Strategy Sharpe vs Max Drawdown',
+            data: rows.map(row => ({ x: Number(row.Max_Drawdown_pct || 0), y: Number(row.Sharpe_Ratio || 0), strategy: row.Strategy })),
+            pointRadius: 6,
+            pointHoverRadius: 9,
+            pointBackgroundColor: 'rgba(16,185,129,.75)',
+            pointBorderColor: '#e2e8f0'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#e2e8f0' } },
+            tooltip: { callbacks: { label: ctx => `${ctx.raw.strategy}: DD ${num(ctx.raw.x)}%, Sharpe ${num(ctx.raw.y, 3)}` } }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Max Drawdown %', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { title: { display: true, text: 'Sharpe Ratio', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+          }
+        }
+      });
+    }
+
+    function renderStrategies() {
+      document.getElementById('strategyGrid').innerHTML = (app.state.strategies || []).map(strategy => `
+        <button class="strategy-card panel p-4 text-left transition hover:border-terminal-emerald/60" data-name="${strategy.name}" data-enabled="${strategy.enabled}">
+          <div class="flex items-start justify-between gap-3">
+            <div><div class="font-semibold">${strategy.label}</div><p class="mt-2 text-sm text-terminal-muted">${strategy.description}</p></div>
+            <span class="rounded border px-2 py-1 text-xs ${strategy.enabled ? 'border-terminal-emerald text-terminal-emerald' : 'border-terminal-rose text-terminal-rose'}">${strategy.enabled ? 'ON' : 'OFF'}</span>
+          </div>
+        </button>`).join('');
+      document.querySelectorAll('.strategy-card').forEach(card => {
+        card.onclick = async () => {
+          try {
+            const enabled = card.dataset.enabled !== 'true';
+            const payload = await api('/api/toggle_strategy', { strategy: card.dataset.name, enabled });
+            toast(payload.message);
+            renderAll();
+          } catch (error) {
+            toast(error.message, false);
+          }
+        };
+      });
+    }
+
+    function renderPortfolio() {
+      const account = app.state.account || {};
+      const positions = account.positions || [];
+      document.getElementById('holdingsBody').innerHTML = positions.length ? positions.map(row => `
+        <tr class="${row.unrealized_pnl >= 0 ? 'flash-green' : 'flash-red'}">
+          <td class="px-3 py-2 font-semibold">${row.ticker}</td>
+          <td class="px-3 py-2 text-right">${row.quantity}</td>
+          <td class="px-3 py-2 text-right">${money(row.average_price)}</td>
+          <td class="px-3 py-2 text-right">${money(row.current_value)}</td>
+          <td class="px-3 py-2 text-right ${row.unrealized_pnl >= 0 ? 'text-terminal-emerald' : 'text-terminal-rose'}">${money(row.unrealized_pnl)}</td>
+          <td class="px-3 py-2 text-right ${row.unrealized_pnl_pct >= 0 ? 'text-terminal-emerald' : 'text-terminal-rose'}">${num(row.unrealized_pnl_pct)}%</td>
+        </tr>`).join('') : '<tr><td class="px-3 py-4 text-terminal-muted" colspan="6">No active positions.</td></tr>';
+      document.getElementById('orderLog').textContent = (account.logs || []).join('\n');
+    }
+
+    function renderAll() {
+      renderDashboard();
+      renderReports();
+      renderStrategies();
+      renderPortfolio();
+    }
+
+    document.querySelectorAll('.tab').forEach(tab => tab.onclick = () => switchView(tab.dataset.view));
+    document.getElementById('assetSearch').oninput = renderReports;
+    document.getElementById('refreshReports').onclick = refreshState;
+
+    document.getElementById('connectBtn').onclick = async () => {
+      try {
+        const payload = await api('/api/connect_zerodha', {
+          api_key: document.getElementById('apiKey').value,
+          api_secret: document.getElementById('apiSecret').value,
+          token: document.getElementById('apiToken').value
+        });
+        toast(payload.message);
+        renderAll();
+      } catch (error) {
+        toast(error.message, false);
+      }
+    };
+
+    document.getElementById('downloadBtn').onclick = async () => {
+      try {
+        toast('Downloading and recalibrating. This can take a bit.');
+        const payload = await api('/api/download_ticker', { ticker: document.getElementById('tickerInput').value });
+        toast(payload.message);
+        renderAll();
+      } catch (error) {
+        toast(error.message, false);
+      }
+    };
+
+    document.getElementById('injectBtn').onclick = async () => {
+      try {
+        toast('Compiling strategy and refreshing reports.');
+        const payload = await api('/api/add_custom_strategy', {
+          name: document.getElementById('customName').value,
+          condition: document.getElementById('customRule').value
+        });
+        toast(payload.message);
+        renderAll();
+      } catch (error) {
+        toast(error.message, false);
+      }
+    };
+
+    document.getElementById('placeOrder').onclick = async () => {
+      try {
+        const payload = await api('/api/place_order', {
+          ticker: document.getElementById('orderTicker').value,
+          side: document.getElementById('orderSide').value,
+          quantity: Number(document.getElementById('orderQty').value || 1)
+        });
+        toast(payload.message);
+        renderAll();
+        switchView('portfolio');
+      } catch (error) {
+        toast(error.message, false);
+      }
+    };
+
+    document.getElementById('runScan').onclick = async () => {
+      try {
+        const payload = await api('/api/run_scan', {});
+        toast(payload.message);
+        renderAll();
+        switchView('portfolio');
+      } catch (error) {
+        toast(error.message, false);
+      }
+    };
+
+    renderAll();
+    setInterval(refreshState, 10000);
+  </script>
+</body>
+</html>

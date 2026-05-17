@@ -1,0 +1,8 @@
+pandas>=2.0.0
+numpy>=1.24.0
+ta>=0.11.0
+yfinance>=0.2.40
+flask>=3.0.0
+
+# Install all dependencies:
+#   pip install -r requirements.txt
