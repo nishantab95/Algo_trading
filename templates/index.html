@@ -1,405 +1,1118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Institutional Algo Trading Terminal</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            terminal: {
-              bg: '#0f172a',
-              panel: '#111827',
-              raised: '#1e293b',
-              line: '#334155',
-              text: '#e2e8f0',
-              muted: '#94a3b8',
-              emerald: '#10b981',
-              rose: '#fb7185',
-              amber: '#f59e0b',
-              indigo: '#818cf8'
-            }
-          }
-        }
-      }
-    };
-  </script>
-  <style>
-    body { background:#0f172a; color:#e2e8f0; font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
-    .panel { background:#111827; border:1px solid #334155; border-radius:10px; }
-    .tab { border:1px solid transparent; color:#94a3b8; }
-    .tab.active { border-color:rgba(16,185,129,.6); color:#10b981; background:rgba(16,185,129,.08); }
-    .view { display:none; }
-    .view.active { display:block; }
-    .scrollbar::-webkit-scrollbar { width:10px; height:10px; }
-    .scrollbar::-webkit-scrollbar-thumb { background:#334155; border-radius:999px; }
-    .flash-green { animation: greenFlash 700ms ease; }
-    .flash-red { animation: redFlash 700ms ease; }
-    @keyframes greenFlash { from { box-shadow: inset 0 0 0 999px rgba(16,185,129,.14); } to { box-shadow: inset 0 0 0 999px transparent; } }
-    @keyframes redFlash { from { box-shadow: inset 0 0 0 999px rgba(251,113,133,.14); } to { box-shadow: inset 0 0 0 999px transparent; } }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AlgoTerminal</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ── RESET & TOKENS ─────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f12;
+  --surface:#13161b;
+  --surface2:#1a1e25;
+  --border:#242830;
+  --border2:#2e3440;
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --muted2:#94a3b8;
+  --green:#22c55e;
+  --green-dim:#166534;
+  --green-bg:rgba(34,197,94,.08);
+  --red:#ef4444;
+  --red-dim:#7f1d1d;
+  --red-bg:rgba(239,68,68,.08);
+  --amber:#f59e0b;
+  --amber-bg:rgba(245,158,11,.08);
+  --blue:#3b82f6;
+  --blue-bg:rgba(59,130,246,.08);
+  --accent:#6366f1;
+  --accent-dim:#3730a3;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'DM Sans',sans-serif;
+  --radius:6px;
+  --radius-lg:10px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;overflow:hidden}
+
+/* ── LAYOUT ─────────────────────────────────────── */
+.shell{display:grid;grid-template-rows:48px 1fr;grid-template-columns:52px 1fr;height:100vh;overflow:hidden}
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--border);background:var(--surface)}
+.sidebar{display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;border-right:1px solid var(--border);background:var(--surface)}
+.main{overflow:hidden;display:flex;flex-direction:column}
+
+/* ── TOPBAR ─────────────────────────────────────── */
+.logo{font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.08em;color:var(--text)}
+.logo span{color:var(--accent)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.status-pill{display:flex;align-items:center;gap:5px;font-size:11px;font-family:var(--mono);padding:3px 8px;border-radius:20px;border:1px solid var(--border)}
+.status-pill.live{border-color:var(--green-dim);color:var(--green);background:var(--green-bg)}
+.status-pill.paper{border-color:var(--accent-dim);color:var(--accent);background:rgba(99,102,241,.08)}
+.status-pill.closed{border-color:var(--red-dim);color:var(--red);background:var(--red-bg)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.ist-clock{font-family:var(--mono);font-size:11px;color:var(--muted2)}
+
+/* ── SIDEBAR ICONS ──────────────────────────────── */
+.nav-icon{width:36px;height:36px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);border:1px solid transparent;transition:all .15s;position:relative}
+.nav-icon:hover{color:var(--text);background:var(--surface2)}
+.nav-icon.active{color:var(--accent);background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.25)}
+.nav-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.nav-tip{position:absolute;left:46px;background:var(--surface2);border:1px solid var(--border2);padding:4px 8px;border-radius:var(--radius);font-size:11px;white-space:nowrap;color:var(--text);pointer-events:none;opacity:0;transition:opacity .15s;z-index:100}
+.nav-icon:hover .nav-tip{opacity:1}
+
+/* ── TABS ────────────────────────────────────────── */
+.tab-bar{display:flex;gap:1px;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{padding:10px 16px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.02em}
+.tab:hover{color:var(--muted2)}
+.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+
+/* ── SCROLL AREA ─────────────────────────────────── */
+.pane{display:none;flex:1;overflow-y:auto;padding:20px;gap:16px;flex-direction:column}
+.pane.active{display:flex}
+.pane::-webkit-scrollbar{width:4px}
+.pane::-webkit-scrollbar-track{background:transparent}
+.pane::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── GRID HELPERS ────────────────────────────────── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}}
+
+/* ── CARDS ───────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
+.card-sm{padding:12px}
+.card-title{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.card-title svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;opacity:.6}
+
+/* ── KPI CARDS ───────────────────────────────────── */
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px}
+.kpi-label{font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em}
+.kpi-val{font-size:22px;font-weight:600;font-family:var(--mono);letter-spacing:-.02em;line-height:1}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)}
+.up{color:var(--green)}.dn{color:var(--red)}.neu{color:var(--muted2)}
+
+/* ── TABLE ───────────────────────────────────────── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;padding:8px 10px;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--muted2);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--surface2);color:var(--text)}
+.tbl .num{font-family:var(--mono);font-size:11px}
+.tbl .ticker{font-family:var(--mono);font-weight:500;color:var(--text);font-size:12px}
+
+/* ── BADGES ──────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:500;font-family:var(--mono);letter-spacing:.04em}
+.badge-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-dim)}
+.badge-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-dim)}
+.badge-amber{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(245,158,11,.3)}
+.badge-blue{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
+.badge-accent{background:rgba(99,102,241,.1);color:var(--accent);border:1px solid rgba(99,102,241,.3)}
+
+/* ── FEED ────────────────────────────────────────── */
+.feed{display:flex;flex-direction:column;gap:0;max-height:220px;overflow-y:auto;font-family:var(--mono);font-size:11px}
+.feed::-webkit-scrollbar{width:3px}
+.feed::-webkit-scrollbar-thumb{background:var(--border2)}
+.feed-line{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);align-items:baseline}
+.feed-line:last-child{border-bottom:none}
+.feed-ts{color:var(--muted);flex-shrink:0;font-size:10px;min-width:56px}
+.feed-tag{flex-shrink:0;min-width:52px}
+.feed-tag.ok{color:var(--green)}.feed-tag.err{color:var(--red)}.feed-tag.info{color:var(--blue)}.feed-tag.warn{color:var(--amber)}
+.feed-msg{color:var(--muted2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── FORMS ───────────────────────────────────────── */
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.field input,.field select,.field textarea{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;color:var(--text);font-size:13px;font-family:var(--sans);outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
+.field select option{background:var(--surface2)}
+.field input::placeholder{color:var(--muted)}
+.field textarea{resize:vertical;min-height:60px;font-family:var(--mono);font-size:11px}
+
+/* ── BUTTONS ─────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--muted2);transition:all .15s;font-family:var(--sans)}
+.btn:hover{color:var(--text);border-color:var(--border2)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#4f46e5;border-color:#4f46e5;color:#fff}
+.btn-green{background:var(--green-bg);border-color:var(--green-dim);color:var(--green)}
+.btn-red{background:var(--red-bg);border-color:var(--red-dim);color:var(--red)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+
+/* ── TOGGLE ──────────────────────────────────────── */
+.tog{width:32px;height:18px;border-radius:9px;background:var(--border2);border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.tog.on{background:var(--accent)}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s}
+.tog.on::after{transform:translateX(14px)}
+
+/* ── SCORE BAR ───────────────────────────────────── */
+.sbar-wrap{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;min-width:60px}
+.sbar{height:100%;border-radius:2px;background:var(--accent);transition:width .4s}
+
+/* ── P&L BAR ─────────────────────────────────────── */
+.pnl-bar-wrap{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.pnl-bar{height:100%;border-radius:2px}
+.pnl-bar.up{background:var(--green)}.pnl-bar.dn{background:var(--red)}
+
+/* ── SLIDERS ─────────────────────────────────────── */
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.slider-row label{font-size:11px;color:var(--muted);min-width:100px}
+.slider-row input[type=range]{flex:1;accent-color:var(--accent);height:3px}
+.slider-val{font-size:11px;font-family:var(--mono);color:var(--accent);min-width:36px;text-align:right}
+
+/* ── SECTION HEADER ──────────────────────────────── */
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.sec-hdr h2{font-size:13px;font-weight:600;color:var(--text);letter-spacing:.02em}
+.sec-hdr .actions{display:flex;gap:8px}
+
+/* ── INLINE STATUS ───────────────────────────────── */
+.status-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)}
+.status-row:last-child{border-bottom:none}
+.status-row .label{font-size:12px;color:var(--muted2)}
+.status-row .val{margin-left:auto;font-size:12px;font-family:var(--mono)}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sdot.ok{background:var(--green)}.sdot.warn{background:var(--amber)}.sdot.err{background:var(--red)}
+
+/* ── CHART ───────────────────────────────────────── */
+.chart-wrap{position:relative;height:140px}
+
+/* ── SPINNER ─────────────────────────────────────── */
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading .spinner{display:inline-block}
+
+/* ── TOAST ───────────────────────────────────────── */
+#toast-wrap{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+.toast{padding:10px 14px;border-radius:var(--radius);font-size:12px;font-family:var(--mono);border:1px solid;animation:slide-in .2s ease;max-width:320px}
+.toast.ok{background:var(--green-bg);border-color:var(--green-dim);color:var(--green)}
+.toast.err{background:var(--red-bg);border-color:var(--red-dim);color:var(--red)}
+.toast.info{background:var(--blue-bg);border-color:rgba(59,130,246,.3);color:var(--blue)}
+@keyframes slide-in{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── MINI SPARKLINE ──────────────────────────────── */
+.spark{display:flex;align-items:flex-end;gap:2px;height:28px}
+.spark-bar{border-radius:1px 1px 0 0;min-width:5px;opacity:.8}
+.spark-bar.up{background:var(--green)}.spark-bar.dn{background:var(--red)}.spark-bar.neu{background:var(--border2)}
+
+/* ── EMPTY STATE ─────────────────────────────────── */
+.empty{text-align:center;padding:32px;color:var(--muted);font-size:12px}
+.empty svg{width:32px;height:32px;stroke:currentColor;fill:none;stroke-width:1.2;margin:0 auto 8px;display:block;opacity:.4}
+</style>
 </head>
 <body>
-  <div id="toast" class="fixed right-4 top-4 z-50 hidden max-w-md rounded-lg border border-terminal-line bg-terminal-raised px-4 py-3 text-sm shadow-xl"></div>
-  <div class="min-h-screen">
-    <header class="sticky top-0 z-30 border-b border-terminal-line bg-terminal-bg/95 px-5 py-4 backdrop-blur">
-      <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <div class="text-xs uppercase tracking-[0.28em] text-terminal-muted">Institutional Rule-Based Trading Terminal</div>
-          <h1 class="mt-1 text-2xl font-semibold text-terminal-text">Interactive Algo Cockpit</h1>
-        </div>
-        <nav class="flex flex-wrap gap-2">
-          <button class="tab active rounded-md px-4 py-2 text-sm" data-view="dashboard">Core Dashboard</button>
-          <button class="tab rounded-md px-4 py-2 text-sm" data-view="reports">Dual Reports</button>
-          <button class="tab rounded-md px-4 py-2 text-sm" data-view="playbook">Strategy Playbook</button>
-          <button class="tab rounded-md px-4 py-2 text-sm" data-view="portfolio">Portfolio Terminal</button>
-        </nav>
-      </div>
-    </header>
 
-    <main class="p-5 lg:p-8">
-      <section id="dashboard" class="view active">
-        <div class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-          <div class="panel p-5">
-            <div class="mb-4 flex items-center justify-between">
-              <div>
-                <h2 class="text-xl font-semibold">Zerodha Connectivity</h2>
-                <p id="connectivityText" class="mt-1 text-sm text-terminal-muted">Checking session...</p>
-              </div>
-              <span id="connectivityBadge" class="rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-widest"></span>
-            </div>
-            <div class="grid gap-3 md:grid-cols-4">
-              <input id="apiKey" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="API Key" />
-              <input id="apiSecret" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="API Secret" type="password" />
-              <input id="apiToken" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Request / Access Token" type="password" />
-              <button id="connectBtn" class="rounded-md border border-terminal-emerald/60 bg-terminal-emerald/10 px-4 py-3 text-sm font-semibold text-terminal-emerald">Authenticate Session</button>
-            </div>
-          </div>
+<div class="shell">
 
-          <div class="panel p-5">
-            <h2 class="text-xl font-semibold">Import New NSE Asset</h2>
-            <p class="mt-1 text-sm text-terminal-muted">Downloads five years of daily yfinance data, preprocesses it, and refreshes both reports.</p>
-            <div class="mt-4 flex gap-3">
-              <input id="tickerInput" class="w-full rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Example: SBIN.NS" />
-              <button id="downloadBtn" class="shrink-0 rounded-md border border-terminal-amber/60 bg-terminal-amber/10 px-4 py-3 text-sm font-semibold text-terminal-amber">Execute Download</button>
-            </div>
-          </div>
-        </div>
+<!-- ── TOPBAR ──────────────────────────────────── -->
+<header class="topbar">
+  <div class="logo">Algo<span>Terminal</span></div>
+  <div class="status-pill paper" id="mode-pill"><span class="dot pulse"></span><span id="mode-label">PAPER</span></div>
+  <div class="status-pill" id="market-pill"><span class="dot" id="mkt-dot"></span><span id="mkt-label">Checking…</span></div>
+  <div class="topbar-right">
+    <div class="ist-clock" id="clock">--:--:-- IST</div>
+    <span id="universe-badge" class="badge badge-accent">— tickers</span>
+  </div>
+</header>
 
-        <div class="mt-5 grid gap-4 md:grid-cols-4">
-          <div class="panel p-4"><div class="text-xs uppercase tracking-widest text-terminal-muted">Initial Capital</div><div id="initialCapital" class="mt-2 text-2xl font-semibold text-terminal-amber"></div></div>
-          <div class="panel p-4"><div class="text-xs uppercase tracking-widest text-terminal-muted">Current Balance</div><div id="cashBalance" class="mt-2 text-2xl font-semibold text-terminal-text"></div></div>
-          <div class="panel p-4"><div class="text-xs uppercase tracking-widest text-terminal-muted">Active Positions</div><div id="activePositions" class="mt-2 text-2xl font-semibold text-terminal-indigo"></div></div>
-          <div id="pnlCard" class="panel p-4"><div class="text-xs uppercase tracking-widest text-terminal-muted">Open Unrealized P&L</div><div id="openPnl" class="mt-2 text-2xl font-semibold"></div></div>
-        </div>
-      </section>
+<!-- ── SIDEBAR ─────────────────────────────────── -->
+<nav class="sidebar">
+  <!-- Overview -->
+  <div class="nav-icon active" data-tab="overview" onclick="switchTab('overview',this)">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span class="nav-tip">Overview</span>
+  </div>
+  <!-- Positions -->
+  <div class="nav-icon" data-tab="positions" onclick="switchTab('positions',this)">
+    <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+    <span class="nav-tip">Positions</span>
+  </div>
+  <!-- Strategy -->
+  <div class="nav-icon" data-tab="strategy" onclick="switchTab('strategy',this)">
+    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="nav-tip">Strategy lab</span>
+  </div>
+  <!-- Orders -->
+  <div class="nav-icon" data-tab="orders" onclick="switchTab('orders',this)">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+    <span class="nav-tip">Order desk</span>
+  </div>
+  <!-- Reports -->
+  <div class="nav-icon" data-tab="reports" onclick="switchTab('reports',this)">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    <span class="nav-tip">Reports</span>
+  </div>
+  <!-- Settings -->
+  <div class="nav-icon" style="margin-top:auto" data-tab="settings" onclick="switchTab('settings',this)">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span class="nav-tip">Settings</span>
+  </div>
+</nav>
 
-      <section id="reports" class="view">
-        <div class="mb-5 grid gap-5 xl:grid-cols-2">
-          <div class="panel p-4">
-            <div class="mb-3 flex items-center justify-between">
-              <div><h2 class="text-xl font-semibold">Strategy Sharpe vs Drawdown</h2><p class="text-sm text-terminal-muted">Low drawdown and high Sharpe cluster in the top-left zone.</p></div>
-              <button id="refreshReports" class="rounded-md border border-terminal-line px-3 py-2 text-sm text-terminal-muted">Refresh</button>
-            </div>
-            <div class="h-[360px]"><canvas id="riskChart"></canvas></div>
-          </div>
-          <div class="panel p-4">
-            <h2 class="mb-3 text-xl font-semibold">Global Strategy Summary</h2>
-            <div class="scrollbar max-h-[360px] overflow-auto">
-              <table class="min-w-[1300px] w-full text-left text-xs">
-                <thead class="sticky top-0 bg-terminal-panel text-terminal-muted">
-                  <tr id="globalHead"></tr>
-                </thead>
-                <tbody id="globalBody" class="divide-y divide-terminal-line"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+<!-- ── MAIN ────────────────────────────────────── -->
+<main class="main">
+<div class="tab-bar">
+  <div class="tab active" id="tab-overview" onclick="switchTab('overview',null)">Overview</div>
+  <div class="tab" id="tab-positions" onclick="switchTab('positions',null)">Positions</div>
+  <div class="tab" id="tab-strategy" onclick="switchTab('strategy',null)">Strategy lab</div>
+  <div class="tab" id="tab-orders" onclick="switchTab('orders',null)">Order desk</div>
+  <div class="tab" id="tab-reports" onclick="switchTab('reports',null)">Reports</div>
+  <div class="tab" id="tab-settings" onclick="switchTab('settings',null)">Settings</div>
+</div>
 
-        <div class="panel p-4">
-          <div class="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div><h2 class="text-xl font-semibold">Asset Performance Leaderboard</h2><p class="text-sm text-terminal-muted">Granular stock-level winners by strategy rule.</p></div>
-            <input id="assetSearch" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Filter by ticker..." />
-          </div>
-          <div class="scrollbar max-h-[470px] overflow-auto">
-            <table class="min-w-[1000px] w-full text-left text-xs">
-              <thead class="sticky top-0 bg-terminal-panel text-terminal-muted">
-                <tr id="assetHead"></tr>
-              </thead>
-              <tbody id="assetBody" class="divide-y divide-terminal-line"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section id="playbook" class="view">
-        <div class="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
-          <div>
-            <div class="mb-4"><h2 class="text-xl font-semibold">Strategy Toggle Matrix</h2><p class="text-sm text-terminal-muted">Activate or deactivate the rules the selector and bot may process.</p></div>
-            <div id="strategyGrid" class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3"></div>
-          </div>
-          <div class="panel p-5">
-            <h2 class="text-xl font-semibold">Custom Strategy Code Injector</h2>
-            <p class="mt-1 text-sm text-terminal-muted">Use existing indicator columns such as Close, EMA_21, RSI_14, MACD_Hist, Bollinger_Upper, Volume_Z_Score.</p>
-            <input id="customName" class="mt-4 w-full rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Strategy Name" />
-            <textarea id="customRule" class="mt-3 h-52 w-full rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 font-mono text-sm outline-none focus:border-terminal-emerald" placeholder="Example: (RSI_14 < 35) & (Close > EMA_21)"></textarea>
-            <button id="injectBtn" class="mt-3 w-full rounded-md border border-terminal-emerald/60 bg-terminal-emerald/10 px-4 py-3 text-sm font-semibold text-terminal-emerald">Compile and Inject Strategy</button>
-          </div>
-        </div>
-      </section>
-
-      <section id="portfolio" class="view">
-        <div class="mb-5 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-          <div class="panel p-5">
-            <h2 class="text-xl font-semibold">Manual Order Ticket</h2>
-            <div class="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-1">
-              <input id="orderTicker" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Ticker e.g. RELIANCE" />
-              <select id="orderSide" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald"><option>BUY</option><option>SELL</option></select>
-              <input id="orderQty" class="rounded-md border border-terminal-line bg-terminal-bg px-3 py-3 text-sm outline-none focus:border-terminal-emerald" placeholder="Quantity" type="number" value="1" min="1" />
-              <button id="placeOrder" class="rounded-md border border-terminal-emerald/60 bg-terminal-emerald/10 px-4 py-3 text-sm font-semibold text-terminal-emerald">Submit Order Payload</button>
-            </div>
-            <button id="runScan" class="mt-3 w-full rounded-md border border-terminal-amber/60 bg-terminal-amber/10 px-4 py-3 text-sm font-semibold text-terminal-amber">Run Strategy Signal Scan</button>
-          </div>
-          <div class="panel p-5">
-            <h2 class="mb-3 text-xl font-semibold">Active Holdings</h2>
-            <div class="scrollbar max-h-[360px] overflow-auto">
-              <table class="min-w-[850px] w-full text-left text-xs">
-                <thead class="bg-terminal-panel text-terminal-muted">
-                  <tr><th class="px-3 py-2">Ticker</th><th class="px-3 py-2 text-right">Quantity</th><th class="px-3 py-2 text-right">Buy Price</th><th class="px-3 py-2 text-right">Current Value</th><th class="px-3 py-2 text-right">P&L</th><th class="px-3 py-2 text-right">P&L %</th></tr>
-                </thead>
-                <tbody id="holdingsBody" class="divide-y divide-terminal-line"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <div class="panel overflow-hidden">
-          <div class="border-b border-terminal-line px-4 py-3 text-sm font-semibold">Live Order Stream Log</div>
-          <pre id="orderLog" class="scrollbar h-[360px] overflow-auto whitespace-pre-wrap bg-[#020617] p-4 font-mono text-xs leading-5 text-terminal-muted"></pre>
-        </div>
-      </section>
-    </main>
+<!-- ════════════════════════════════════════════
+     OVERVIEW
+═══════════════════════════════════════════════ -->
+<div class="pane active" id="pane-overview">
+  <div class="g4">
+    <div class="kpi"><div class="kpi-label">Portfolio value</div><div class="kpi-val" id="kpi-portfolio">—</div><div class="kpi-sub" id="kpi-mode-sub">paper mode</div></div>
+    <div class="kpi"><div class="kpi-label">Cash available</div><div class="kpi-val neu" id="kpi-cash">—</div><div class="kpi-sub" id="kpi-positions-sub">— positions open</div></div>
+    <div class="kpi"><div class="kpi-label">Unrealised P&amp;L</div><div class="kpi-val" id="kpi-pnl">—</div><div class="kpi-sub" id="kpi-pnl-sub">across all holdings</div></div>
+    <div class="kpi"><div class="kpi-label">Active strategy</div><div class="kpi-val neu" id="kpi-strategy" style="font-size:14px;line-height:1.3">—</div><div class="kpi-sub" id="kpi-score-sub">score —</div></div>
   </div>
 
-  <script>
-    const app = { state: {{ initial_state | safe }}, riskChart: null };
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Equity curve (paper session)
+      </div>
+      <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Risk snapshot
+      </div>
+      <div id="risk-rows">
+        <div class="status-row"><span class="sdot" id="sdot-market"></span><span class="label">Market</span><span class="val" id="val-market">—</span></div>
+        <div class="status-row"><span class="sdot" id="sdot-broker"></span><span class="label">Broker</span><span class="val" id="val-broker">—</span></div>
+        <div class="status-row"><span class="sdot ok"></span><span class="label">Initial capital</span><span class="val" id="val-capital">—</span></div>
+        <div class="status-row"><span class="sdot" id="sdot-pos"></span><span class="label">Position slots</span><span class="val" id="val-slots">—</span></div>
+        <div class="status-row"><span class="sdot ok"></span><span class="label">Universe size</span><span class="val" id="val-universe">—</span></div>
+      </div>
+    </div>
+  </div>
 
-    const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value || 0);
-    const num = (value, digits = 2) => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  <div class="card">
+    <div class="card-title">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Live activity feed
+    </div>
+    <div class="feed" id="activity-feed">
+      <div class="feed-line"><span class="feed-ts">--:--:--</span><span class="feed-tag info">[SYSTEM]</span><span class="feed-msg">Connecting to backend…</span></div>
+    </div>
+  </div>
 
-    function toast(message, ok = true) {
-      const box = document.getElementById('toast');
-      box.textContent = message;
-      box.className = `fixed right-4 top-4 z-50 max-w-md rounded-lg border px-4 py-3 text-sm shadow-xl ${ok ? 'border-terminal-emerald bg-terminal-raised text-terminal-emerald' : 'border-terminal-rose bg-terminal-raised text-terminal-rose'}`;
-      box.classList.remove('hidden');
-      clearTimeout(toast.timer);
-      toast.timer = setTimeout(() => box.classList.add('hidden'), 3600);
-    }
+  <div class="card card-sm">
+    <div class="sec-hdr" style="margin-bottom:8px">
+      <div class="card-title" style="margin-bottom:0">Quick actions</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="runScan()">
+        <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Run signal scan
+      </button>
+      <button class="btn" onclick="runExitSweep()">
+        <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+        Sweep exits
+      </button>
+      <button class="btn" onclick="refreshState()">
+        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh
+      </button>
+      <button class="btn" onclick="runRecalibration()">
+        <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Rebuild reports
+      </button>
+    </div>
+  </div>
+</div>
 
-    async function api(url, body = null, method = 'POST') {
-      const options = { method, headers: { 'Content-Type': 'application/json' } };
-      if (body) options.body = JSON.stringify(body);
-      const response = await fetch(url, options);
-      const payload = await response.json();
-      if (!response.ok || payload.ok === false) throw new Error(payload.error || payload.message || 'Request failed');
-      if (payload.state) app.state = payload.state;
-      return payload;
-    }
+<!-- ════════════════════════════════════════════
+     POSITIONS
+═══════════════════════════════════════════════ -->
+<div class="pane" id="pane-positions">
+  <div class="sec-hdr">
+    <h2>Open positions <span class="badge badge-accent" id="pos-count-badge">0</span></h2>
+    <div class="actions">
+      <button class="btn btn-sm" onclick="runExitSweep()">
+        <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+        Sweep exits
+      </button>
+    </div>
+  </div>
 
-    async function refreshState() {
-      const response = await fetch('/api/state');
-      app.state = await response.json();
-      renderAll();
-    }
+  <div class="card card-sm">
+    <div class="card-title">Exit parameters — applied to new positions</div>
+    <div class="slider-row">
+      <label>Stop loss</label>
+      <input type="range" min="1" max="20" value="5" id="sl-slider" oninput="document.getElementById('sl-val').textContent=this.value+'%'">
+      <span class="slider-val" id="sl-val">5%</span>
+    </div>
+    <div class="slider-row">
+      <label>Take profit</label>
+      <input type="range" min="5" max="50" value="15" id="tp-slider" oninput="document.getElementById('tp-val').textContent=this.value+'%'">
+      <span class="slider-val" id="tp-val">15%</span>
+    </div>
+    <div class="slider-row">
+      <label>Trailing stop</label>
+      <input type="range" min="1" max="20" value="7" id="tr-slider" oninput="document.getElementById('tr-val').textContent=this.value+'%'">
+      <span class="slider-val" id="tr-val">7%</span>
+    </div>
+  </div>
 
-    function switchView(view) {
-      document.querySelectorAll('.view').forEach(node => node.classList.toggle('active', node.id === view));
-      document.querySelectorAll('.tab').forEach(node => node.classList.toggle('active', node.dataset.view === view));
-      if (view === 'reports') renderRiskChart();
-    }
+  <div class="card">
+    <div class="card-title">Holdings</div>
+    <div id="positions-body">
+      <div class="empty">
+        <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        No open positions
+      </div>
+    </div>
+  </div>
+</div>
 
-    function renderDashboard() {
-      const account = app.state.account || {};
-      const connected = app.state.zerodha?.connected;
-      document.getElementById('connectivityText').textContent = connected ? 'CONNECTED - LIVE NODE' : 'DISCONNECTED - PAPER MODE ACTIVE';
-      const badge = document.getElementById('connectivityBadge');
-      badge.textContent = connected ? 'LIVE' : 'PAPER';
-      badge.className = `rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-widest ${connected ? 'border-terminal-emerald text-terminal-emerald' : 'border-terminal-rose text-terminal-rose'}`;
-      document.getElementById('initialCapital').textContent = money(account.initial_capital);
-      document.getElementById('cashBalance').textContent = money(account.cash_balance);
-      document.getElementById('activePositions').textContent = account.active_positions || 0;
-      const pnl = Number(account.unrealized_pnl || 0);
-      const pnlEl = document.getElementById('openPnl');
-      pnlEl.textContent = `${pnl >= 0 ? '+' : ''}${money(pnl)}`;
-      pnlEl.className = `mt-2 text-2xl font-semibold ${pnl >= 0 ? 'text-terminal-emerald' : 'text-terminal-rose'}`;
-    }
+<!-- ════════════════════════════════════════════
+     STRATEGY LAB
+═══════════════════════════════════════════════ -->
+<div class="pane" id="pane-strategy">
+  <div class="sec-hdr">
+    <h2>Strategy lab</h2>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="runScan()">
+        <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Run scan
+      </button>
+    </div>
+  </div>
 
-    function renderTable(headId, bodyId, rows, filter = '') {
-      const head = document.getElementById(headId);
-      const body = document.getElementById(bodyId);
-      const visibleRows = filter ? rows.filter(row => String(row.Ticker || '').toLowerCase().includes(filter.toLowerCase())) : rows;
-      const columns = visibleRows[0] ? Object.keys(visibleRows[0]) : [];
-      head.innerHTML = columns.map(col => `<th class="px-3 py-2">${col}</th>`).join('');
-      body.innerHTML = visibleRows.map(row => `<tr class="hover:bg-terminal-line/30">${columns.map(col => `<td class="px-3 py-2">${row[col]}</td>`).join('')}</tr>`).join('');
-    }
+  <div class="g3">
+    <div class="kpi"><div class="kpi-label">Winning strategy</div><div class="kpi-val neu" id="strat-name" style="font-size:13px">—</div></div>
+    <div class="kpi"><div class="kpi-label">Selection score</div><div class="kpi-val" id="strat-score">—</div></div>
+    <div class="kpi"><div class="kpi-label">Strategies enabled</div><div class="kpi-val neu" id="strat-enabled-count">—</div></div>
+  </div>
 
-    function renderReports() {
-      const reports = app.state.reports || { global_summary: [], asset_leaderboard: [] };
-      renderTable('globalHead', 'globalBody', reports.global_summary || []);
-      renderTable('assetHead', 'assetBody', reports.asset_leaderboard || [], document.getElementById('assetSearch').value);
-      renderRiskChart();
-    }
+  <div class="card">
+    <div class="card-title">Strategy leaderboard — toggle to enable / disable</div>
+    <div id="strategy-leaderboard">
+      <div class="empty"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Loading strategies…</div>
+    </div>
+  </div>
 
-    function renderRiskChart() {
-      const canvas = document.getElementById('riskChart');
-      if (!canvas || !window.Chart) return;
-      const rows = app.state.reports?.global_summary || [];
-      if (app.riskChart) app.riskChart.destroy();
-      app.riskChart = new Chart(canvas, {
-        type: 'scatter',
-        data: {
-          datasets: [{
-            label: 'Strategy Sharpe vs Max Drawdown',
-            data: rows.map(row => ({ x: Number(row.Max_Drawdown_pct || 0), y: Number(row.Sharpe_Ratio || 0), strategy: row.Strategy })),
-            pointRadius: 6,
-            pointHoverRadius: 9,
-            pointBackgroundColor: 'rgba(16,185,129,.75)',
-            pointBorderColor: '#e2e8f0'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { color: '#e2e8f0' } },
-            tooltip: { callbacks: { label: ctx => `${ctx.raw.strategy}: DD ${num(ctx.raw.x)}%, Sharpe ${num(ctx.raw.y, 3)}` } }
-          },
-          scales: {
-            x: { title: { display: true, text: 'Max Drawdown %', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-            y: { title: { display: true, text: 'Sharpe Ratio', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
-          }
+  <div class="card">
+    <div class="card-title">
+      <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      Inject custom strategy
+    </div>
+    <div class="g2">
+      <div class="field"><label>Strategy name</label><input type="text" id="cs-name" placeholder="My_breakout_rule"/></div>
+      <div class="field"><label>Condition (uses column names from preprocessing.py)</label><input type="text" id="cs-cond" placeholder="RSI_14 < 30 and Close > EMA_50"/></div>
+    </div>
+    <div class="field"><label>Available columns: Close, High, Low, Open, Volume, RSI_14, EMA_9, EMA_21, EMA_50, EMA_200, ATR_14, MACD_Hist, Bollinger_Upper, Bollinger_Lower, Volume_Z_Score …</label></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="injectCustomStrategy()">Compile &amp; inject</button>
+      <span id="cs-status" style="font-size:11px;color:var(--muted);align-self:center"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ORDER DESK
+═══════════════════════════════════════════════ -->
+<div class="pane" id="pane-orders">
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        Place manual order
+      </div>
+      <div class="field"><label>Ticker (NSE symbol, no .NS suffix)</label><input type="text" id="ord-ticker" placeholder="RELIANCE"/></div>
+      <div class="field"><label>Side</label>
+        <select id="ord-side"><option>BUY</option><option>SELL</option></select>
+      </div>
+      <div class="field"><label>Quantity</label><input type="number" id="ord-qty" placeholder="10" min="1"/></div>
+      <div class="btn-row">
+        <button class="btn btn-green" onclick="placeOrder('BUY')">Buy</button>
+        <button class="btn btn-red" onclick="placeOrder('SELL')">Sell</button>
+      </div>
+      <div id="order-feedback" style="font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--mono)"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Add ticker to universe
+      </div>
+      <div class="field"><label>Symbol (will download EOD data &amp; rebuild reports)</label><input type="text" id="dl-ticker" placeholder="DMART"/></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="dl-btn" onclick="downloadTicker()">Download &amp; add</button>
+        <div class="spinner" id="dl-spinner"></div>
+      </div>
+      <div id="dl-feedback" style="font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--mono)"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Recent order log</div>
+    <div class="feed" id="order-log-feed" style="max-height:300px">
+      <div class="feed-line"><span class="feed-ts">—</span><span class="feed-tag info">[SYSTEM]</span><span class="feed-msg">No orders yet this session</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     REPORTS
+═══════════════════════════════════════════════ -->
+<div class="pane" id="pane-reports">
+  <div class="sec-hdr">
+    <h2>Strategy performance report</h2>
+    <div class="actions">
+      <button class="btn btn-sm" onclick="loadReports()">
+        <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+  <div class="card" style="overflow-x:auto">
+    <div class="card-title">Global strategy summary</div>
+    <table class="tbl" id="report-table">
+      <thead><tr>
+        <th>Strategy</th><th>Avg return %</th><th>Win rate %</th>
+        <th>Profit factor</th><th>Sharpe</th><th>Max DD %</th><th>Coverage %</th>
+      </tr></thead>
+      <tbody id="report-tbody">
+        <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Click Refresh to load report data</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card" style="overflow-x:auto">
+    <div class="card-title">Asset leaderboard (top 50)</div>
+    <table class="tbl" id="asset-table">
+      <thead><tr>
+        <th>Ticker</th><th>Strategy</th><th>Return %</th><th>Trades</th><th>Win rate %</th><th>Max DD %</th>
+      </tr></thead>
+      <tbody id="asset-tbody">
+        <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Click Refresh to load asset data</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SETTINGS
+═══════════════════════════════════════════════ -->
+<div class="pane" id="pane-settings">
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Zerodha connection
+      </div>
+      <div class="field"><label>API key</label><input type="text" id="cfg-apikey" placeholder="Your Kite API key"/></div>
+      <div class="field"><label>API secret</label><input type="password" id="cfg-apisecret" placeholder="Your Kite API secret"/></div>
+      <div class="field"><label>Request token (paste after redirect from Zerodha login)</label><input type="text" id="cfg-token" placeholder="Paste request_token here"/></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="connectZerodha()">Connect &amp; authenticate</button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">Login URL: <code style="color:var(--accent);font-size:10px">https://kite.zerodha.com/connect/login?api_key=YOUR_KEY</code></p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Risk parameters
+      </div>
+      <div class="slider-row"><label>Max positions</label><input type="range" min="1" max="20" value="10" id="cfg-maxpos" oninput="document.getElementById('cfg-maxpos-val').textContent=this.value"><span class="slider-val" id="cfg-maxpos-val">10</span></div>
+      <div class="slider-row"><label>Risk per trade</label><input type="range" min="1" max="5" value="1" step="0.5" id="cfg-risk" oninput="document.getElementById('cfg-risk-val').textContent=this.value+'%'"><span class="slider-val" id="cfg-risk-val">1%</span></div>
+      <div class="slider-row"><label>Default stop loss</label><input type="range" min="1" max="20" value="5" id="cfg-sl" oninput="document.getElementById('cfg-sl-val').textContent=this.value+'%'"><span class="slider-val" id="cfg-sl-val">5%</span></div>
+      <div class="slider-row"><label>Default take profit</label><input type="range" min="5" max="50" value="15" id="cfg-tp" oninput="document.getElementById('cfg-tp-val').textContent=this.value+'%'"><span class="slider-val" id="cfg-tp-val">15%</span></div>
+      <div class="slider-row"><label>Default trailing stop</label><input type="range" min="1" max="20" value="7" id="cfg-tr" oninput="document.getElementById('cfg-tr-val').textContent=this.value+'%'"><span class="slider-val" id="cfg-tr-val">7%</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Data management</div>
+    <div class="btn-row">
+      <button class="btn" onclick="runRecalibration()">
+        <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Rebuild universe &amp; reports
+      </button>
+      <button class="btn btn-red" onclick="if(confirm('Reset paper trading session? This clears all virtual positions and resets cash to initial capital.')){resetSession()}">Reset paper session</button>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:10px">Rebuild downloads fresh EOD data for all tickers, re-runs preprocessing, and regenerates the strategy performance report. Takes 2–5 minutes.</p>
+  </div>
+</div>
+
+</main><!-- end .main -->
+</div><!-- end .shell -->
+
+<div id="toast-wrap"></div>
+
+<script>
+/* ── STATE ─────────────────────────────────────── */
+let STATE = {};
+let equityChart = null;
+let equityData = [];
+let pollTimer = null;
+
+/* ── INIT ──────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  // Pre-load initial state injected by Flask
+  try {
+    const raw = document.getElementById('__initial_state__');
+    if (raw) STATE = JSON.parse(raw.textContent);
+  } catch(e) {}
+  initClock();
+  initEquityChart();
+  refreshState();
+  startPolling();
+});
+
+/* ── CLOCK ─────────────────────────────────────── */
+function initClock() {
+  setInterval(() => {
+    const now = new Date();
+    const ist = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Kolkata'}));
+    const h = String(ist.getHours()).padStart(2,'0');
+    const m = String(ist.getMinutes()).padStart(2,'0');
+    const s = String(ist.getSeconds()).padStart(2,'0');
+    document.getElementById('clock').textContent = `${h}:${m}:${s} IST`;
+  }, 1000);
+}
+
+/* ── POLLING ───────────────────────────────────── */
+function startPolling() {
+  pollTimer = setInterval(refreshState, 12000);
+}
+
+/* ── CORE STATE FETCH ──────────────────────────── */
+async function refreshState() {
+  try {
+    const res = await fetch('/api/state');
+    if (!res.ok) throw new Error(res.statusText);
+    STATE = await res.json();
+    renderAll(STATE);
+  } catch(e) {
+    toast('Backend unreachable: ' + e.message, 'err');
+  }
+}
+
+/* ── RENDER ALL ────────────────────────────────── */
+function renderAll(s) {
+  renderHeader(s);
+  renderKPIs(s);
+  renderRiskPanel(s);
+  renderFeed(s);
+  renderPositions(s);
+  renderStrategyLab(s);
+  renderOrderLog(s);
+}
+
+/* ── HEADER ────────────────────────────────────── */
+function renderHeader(s) {
+  const acc = s.account || {};
+  const mode = acc.mode || 'PAPER';
+  const pill = document.getElementById('mode-pill');
+  pill.className = 'status-pill ' + (mode === 'LIVE' ? 'live' : 'paper');
+  document.getElementById('mode-label').textContent = mode;
+
+  const mktOpen = acc.market_open ?? s.zerodha?.mode === 'LIVE';
+  const mktPill = document.getElementById('market-pill');
+  const mktDot  = document.getElementById('mkt-dot');
+  const mktLbl  = document.getElementById('mkt-label');
+  if (mktOpen === true) {
+    mktPill.className = 'status-pill live';
+    mktDot.classList.add('pulse');
+    mktLbl.textContent = 'Market open';
+  } else if (mktOpen === false) {
+    mktPill.className = 'status-pill closed';
+    mktDot.classList.remove('pulse');
+    mktLbl.textContent = 'Market closed';
+  }
+  const uni = s.universe_size;
+  if (uni) document.getElementById('universe-badge').textContent = `${uni} tickers`;
+}
+
+/* ── KPIs ──────────────────────────────────────── */
+function renderKPIs(s) {
+  const acc = s.account || {};
+  const pv  = acc.portfolio_value ?? 0;
+  const cash= acc.cash_balance ?? 0;
+  const pnl = acc.unrealized_pnl ?? 0;
+  const pos = acc.active_positions ?? 0;
+
+  document.getElementById('kpi-portfolio').textContent = fmt(pv);
+  document.getElementById('kpi-portfolio').className   = 'kpi-val ' + (pv >= (acc.initial_capital ?? pv) ? 'up' : 'dn');
+  document.getElementById('kpi-cash').textContent      = fmt(cash);
+  document.getElementById('kpi-positions-sub').textContent = `${pos} position${pos!==1?'s':''} open`;
+  const pnlEl = document.getElementById('kpi-pnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmt(pnl);
+  pnlEl.className   = 'kpi-val ' + (pnl >= 0 ? 'up' : 'dn');
+
+  const ws = s.winning_strategy || '—';
+  const sc = s.selection_score  ?? '—';
+  document.getElementById('kpi-strategy').textContent  = ws.replace(/_/g,' ');
+  document.getElementById('kpi-score-sub').textContent = `score ${sc}`;
+  document.getElementById('strat-name').textContent    = ws.replace(/_/g,' ');
+  document.getElementById('strat-score').textContent   = sc !== '—' ? String(sc) : '—';
+  document.getElementById('strat-score').className     = 'kpi-val ' + (sc > 60 ? 'up' : sc > 40 ? 'neu' : 'dn');
+
+  // Track equity history client-side
+  equityData.push({t: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), v: pv});
+  if (equityData.length > 40) equityData.shift();
+  updateEquityChart();
+}
+
+/* ── EQUITY CHART ──────────────────────────────── */
+function initEquityChart() {
+  const ctx = document.getElementById('equityChart').getContext('2d');
+  equityChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,0.06)',
+        borderWidth: 1.5,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {legend:{display:false}, tooltip:{
+        mode:'index', intersect:false,
+        backgroundColor:'#13161b', borderColor:'#242830', borderWidth:1,
+        titleColor:'#64748b', bodyColor:'#e2e8f0',
+        titleFont:{family:"'IBM Plex Mono',monospace",size:10},
+        bodyFont:{family:"'IBM Plex Mono',monospace",size:11},
+        callbacks:{label: ctx => '₹ ' + ctx.raw.toLocaleString('en-IN',{maximumFractionDigits:0})}
+      }},
+      scales: {
+        x:{display:false},
+        y:{
+          display:true, position:'right',
+          grid:{color:'rgba(255,255,255,.04)', drawBorder:false},
+          ticks:{color:'#64748b',font:{family:"'IBM Plex Mono'",size:10},
+            callback: v => '₹'+Math.round(v/1000)+'k'}
         }
-      });
+      }
     }
+  });
+}
 
-    function renderStrategies() {
-      document.getElementById('strategyGrid').innerHTML = (app.state.strategies || []).map(strategy => `
-        <button class="strategy-card panel p-4 text-left transition hover:border-terminal-emerald/60" data-name="${strategy.name}" data-enabled="${strategy.enabled}">
-          <div class="flex items-start justify-between gap-3">
-            <div><div class="font-semibold">${strategy.label}</div><p class="mt-2 text-sm text-terminal-muted">${strategy.description}</p></div>
-            <span class="rounded border px-2 py-1 text-xs ${strategy.enabled ? 'border-terminal-emerald text-terminal-emerald' : 'border-terminal-rose text-terminal-rose'}">${strategy.enabled ? 'ON' : 'OFF'}</span>
-          </div>
-        </button>`).join('');
-      document.querySelectorAll('.strategy-card').forEach(card => {
-        card.onclick = async () => {
-          try {
-            const enabled = card.dataset.enabled !== 'true';
-            const payload = await api('/api/toggle_strategy', { strategy: card.dataset.name, enabled });
-            toast(payload.message);
-            renderAll();
-          } catch (error) {
-            toast(error.message, false);
-          }
-        };
-      });
+function updateEquityChart() {
+  if (!equityChart) return;
+  equityChart.data.labels   = equityData.map(d => d.t);
+  equityChart.data.datasets[0].data = equityData.map(d => d.v);
+  const first = equityData[0]?.v ?? 0;
+  const last  = equityData[equityData.length-1]?.v ?? 0;
+  equityChart.data.datasets[0].borderColor      = last >= first ? '#22c55e' : '#ef4444';
+  equityChart.data.datasets[0].backgroundColor  = last >= first ? 'rgba(34,197,94,.06)' : 'rgba(239,68,68,.06)';
+  equityChart.update('none');
+}
+
+/* ── RISK PANEL ────────────────────────────────── */
+function renderRiskPanel(s) {
+  const acc = s.account || {};
+  const mktOpen = acc.market_open;
+  setSdot('sdot-market', mktOpen ? 'ok' : 'warn');
+  document.getElementById('val-market').textContent = mktOpen ? 'Open 09:15–15:30 IST' : 'Closed';
+  setSdot('sdot-broker', acc.connected ? 'ok' : 'warn');
+  document.getElementById('val-broker').textContent = acc.connected ? 'Zerodha LIVE' : 'Paper mode';
+  document.getElementById('val-capital').textContent = fmt(acc.initial_capital ?? 0);
+  const pos = acc.active_positions ?? 0;
+  const maxPos = s.paths ? 10 : 10;
+  setSdot('sdot-pos', pos < maxPos ? 'ok' : 'warn');
+  document.getElementById('val-slots').textContent = `${pos} / 10`;
+  document.getElementById('val-universe').textContent = (s.universe_size ?? '—') + ' stocks';
+}
+
+function setSdot(id, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'sdot ' + cls;
+}
+
+/* ── ACTIVITY FEED ─────────────────────────────── */
+function renderFeed(s) {
+  const logs = (s.account?.logs || []).slice(-20).reverse();
+  if (!logs.length) return;
+  const feed = document.getElementById('activity-feed');
+  feed.innerHTML = '';
+  logs.forEach(raw => {
+    let entry;
+    try { entry = JSON.parse(raw); } catch { return; }
+    const msg   = entry.message || '';
+    const ts    = (entry.timestamp || '').split(' ')[1] || '--:--:--';
+    const mode  = entry.mode || 'INFO';
+    let tagCls  = 'info', tag = `[${mode}]`;
+    if (msg.toLowerCase().includes('exit') || msg.toLowerCase().includes('stop')) { tagCls = 'err'; tag = '[EXIT]'; }
+    else if (msg.toLowerCase().includes('buy') || msg.toLowerCase().includes('paper')) { tagCls = 'ok'; tag = '[TRADE]'; }
+    else if (msg.toLowerCase().includes('error') || msg.toLowerCase().includes('fail')) { tagCls = 'err'; tag = '[ERROR]'; }
+    const line = document.createElement('div');
+    line.className = 'feed-line';
+    line.innerHTML = `<span class="feed-ts">${ts}</span><span class="feed-tag ${tagCls}">${tag}</span><span class="feed-msg">${esc(msg)}</span>`;
+    feed.appendChild(line);
+  });
+}
+
+/* ── POSITIONS ─────────────────────────────────── */
+function renderPositions(s) {
+  const positions = s.account?.positions || [];
+  const badge = document.getElementById('pos-count-badge');
+  badge.textContent = positions.length;
+  const body = document.getElementById('positions-body');
+
+  if (!positions.length) {
+    body.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>No open positions</div>';
+    return;
+  }
+
+  const maxAbs = Math.max(...positions.map(p => Math.abs(p.unrealized_pnl || 0)), 1);
+  let html = `<table class="tbl"><thead><tr>
+    <th>Ticker</th><th>Qty</th><th>Avg price</th><th>Last price</th><th>P&amp;L</th><th>P&amp;L %</th><th>Bar</th><th>Stop loss</th><th>Take profit</th>
+  </tr></thead><tbody>`;
+  positions.forEach(p => {
+    const pnl    = p.unrealized_pnl ?? 0;
+    const pnlPct = p.unrealized_pnl_pct ?? 0;
+    const pnlCls = pnl >= 0 ? 'up' : 'dn';
+    const barPct = Math.round(Math.min(Math.abs(pnl) / maxAbs * 100, 100));
+    const sl     = p.stop_loss_price  > 0 ? '₹' + p.stop_loss_price.toLocaleString('en-IN') : '—';
+    const tp     = p.take_profit_price > 0 ? '₹' + p.take_profit_price.toLocaleString('en-IN') : '—';
+    html += `<tr>
+      <td class="ticker">${esc(p.ticker)}</td>
+      <td class="num">${p.quantity}</td>
+      <td class="num">₹${(p.average_price||0).toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+      <td class="num">₹${(p.last_price||0).toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+      <td class="num ${pnlCls}">${pnl>=0?'+':''}₹${Math.abs(pnl).toLocaleString('en-IN',{maximumFractionDigits:0})}</td>
+      <td class="num ${pnlCls}">${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%</td>
+      <td><div class="pnl-bar-wrap"><div class="pnl-bar ${pnlCls}" style="width:${barPct}%"></div></div></td>
+      <td class="num" style="color:var(--red)">${sl}</td>
+      <td class="num" style="color:var(--green)">${tp}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+/* ── STRATEGY LEADERBOARD ──────────────────────── */
+function renderStrategyLab(s) {
+  const strategies = s.strategies || [];
+  const enabled    = strategies.filter(st => st.enabled).length;
+  document.getElementById('strat-enabled-count').textContent = `${enabled} / ${strategies.length}`;
+
+  const board = document.getElementById('strategy-leaderboard');
+  if (!strategies.length) { board.innerHTML = '<div class="empty">No strategy data</div>'; return; }
+
+  // Score from reports if available
+  const reportMap = {};
+  (s.reports?.global_summary || []).forEach(r => {
+    if (r.Strategy) reportMap[r.Strategy] = r;
+  });
+
+  const sorted = [...strategies].sort((a,b) => {
+    const sa = reportMap[a.name]?.Selection_Score ?? 0;
+    const sb = reportMap[b.name]?.Selection_Score ?? 0;
+    return sb - sa;
+  });
+
+  const maxScore = Math.max(...sorted.map(st => reportMap[st.name]?.Selection_Score ?? 0), 1);
+
+  let html = '';
+  sorted.forEach(st => {
+    const rep   = reportMap[st.name] || {};
+    const score = rep.Selection_Score ?? 0;
+    const barW  = maxScore > 0 ? Math.round(score / maxScore * 100) : 0;
+    const sharpe= rep.Sharpe_Ratio ?? '—';
+    const pf    = rep.Global_Profit_Factor ?? '—';
+    const isWin = st.name === s.winning_strategy;
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;font-family:var(--mono);min-width:200px;color:${isWin?'var(--accent)':'var(--muted2)'};font-weight:${isWin?'500':'400'}">${esc(st.name.replace(/_/g,' '))}${isWin?' ★':''}</span>
+      <div class="sbar-wrap"><div class="sbar" style="width:${barW}%"></div></div>
+      <span style="font-size:11px;font-family:var(--mono);color:var(--accent);min-width:32px;text-align:right">${score?score.toFixed(1):'—'}</span>
+      <span style="font-size:10px;font-family:var(--mono);color:var(--muted);min-width:60px">S:${sharpe} PF:${typeof pf==='number'?pf.toFixed(2):pf}</span>
+      <button class="tog ${st.enabled?'on':'off'}" id="tog-${esc(st.name)}" onclick="toggleStrategy('${esc(st.name)}',this)"></button>
+    </div>`;
+  });
+  board.innerHTML = html;
+}
+
+/* ── ORDER LOG ─────────────────────────────────── */
+function renderOrderLog(s) {
+  const logs = (s.account?.logs || []).slice(-30).reverse();
+  if (!logs.length) return;
+  const feed = document.getElementById('order-log-feed');
+  feed.innerHTML = '';
+  logs.forEach(raw => {
+    let entry;
+    try { entry = JSON.parse(raw); } catch { return; }
+    const payload = entry.payload || {};
+    const msg = entry.message || '';
+    const ts  = (entry.timestamp || '').split(' ')[1] || '—';
+    const side= payload.transaction_type || '';
+    const tkr = payload.tradingsymbol || '';
+    const qty = payload.quantity || '';
+    const tagCls = side === 'BUY' ? 'ok' : side === 'SELL' ? 'err' : 'info';
+    const tag    = side ? `[${side}]` : '[LOG]';
+    const detail = tkr ? `${tkr} × ${qty}  ${msg}` : msg;
+    const line   = document.createElement('div');
+    line.className = 'feed-line';
+    line.innerHTML = `<span class="feed-ts">${ts}</span><span class="feed-tag ${tagCls}">${tag}</span><span class="feed-msg">${esc(detail)}</span>`;
+    feed.appendChild(line);
+  });
+}
+
+/* ── REPORTS ───────────────────────────────────── */
+async function loadReports() {
+  try {
+    const res = await fetch('/api/get_reports');
+    const data = await res.json();
+    renderGlobalReport(data.reports?.global_summary || []);
+    renderAssetReport(data.reports?.asset_leaderboard || []);
+  } catch(e) { toast('Failed to load reports: ' + e.message, 'err'); }
+}
+
+function renderGlobalReport(rows) {
+  const tbody = document.getElementById('report-tbody');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No report data. Run a recalibration first.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => {
+    const ret = r.Avg_Return_Per_Asset_pct ?? 0;
+    return `<tr>
+      <td class="ticker">${esc(r.Strategy||'')}</td>
+      <td class="num ${ret>=0?'up':'dn'}">${ret>=0?'+':''}${(ret||0).toFixed(2)}</td>
+      <td class="num">${(r.Average_Win_Rate_pct||0).toFixed(1)}</td>
+      <td class="num">${(r.Global_Profit_Factor||0).toFixed(3)}</td>
+      <td class="num ${(r.Sharpe_Ratio||0)>1?'up':(r.Sharpe_Ratio||0)>0?'neu':'dn'}">${(r.Sharpe_Ratio||0).toFixed(3)}</td>
+      <td class="num dn">${(r.Max_Drawdown_pct||0).toFixed(2)}</td>
+      <td class="num">${(r.Market_Coverage_Hit_Rate_pct||0).toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAssetReport(rows) {
+  const tbody = document.getElementById('asset-tbody');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No asset data.</td></tr>'; return; }
+  tbody.innerHTML = rows.slice(0,50).map(r => {
+    const ret = r['Total_Return_%'] ?? 0;
+    return `<tr>
+      <td class="ticker">${esc(r.Ticker||'')}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(r.Strategy||'')}</td>
+      <td class="num ${ret>=0?'up':'dn'}">${ret>=0?'+':''}${(ret||0).toFixed(2)}</td>
+      <td class="num">${r.Trades||0}</td>
+      <td class="num">${(r['Win_Rate_%']||0).toFixed(1)}</td>
+      <td class="num dn">${(r.Max_Drawdown_pct||0).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── ACTIONS ───────────────────────────────────── */
+async function runScan() {
+  toast('Signal scan started…', 'info');
+  try {
+    const res  = await fetch('/api/run_scan', {method:'POST'});
+    const data = await res.json();
+    if (data.ok) {
+      toast(`Scan complete · ${data.summary?.orders_placed ?? 0} orders placed · ${data.summary?.exits_triggered ?? 0} exits`, 'ok');
+      refreshState();
+    } else { toast('Scan failed: ' + data.error, 'err'); }
+  } catch(e) { toast('Scan error: ' + e.message, 'err'); }
+}
+
+async function runExitSweep() {
+  toast('Running exit sweep…', 'info');
+  try {
+    const res  = await fetch('/api/run_scan', {method:'POST'});
+    const data = await res.json();
+    if (data.ok) {
+      const exits = data.summary?.exits_triggered ?? 0;
+      toast(`Exit sweep done · ${exits} position${exits!==1?'s':''} closed`, exits>0?'ok':'info');
+      refreshState();
+    } else { toast('Exit sweep failed: ' + data.error, 'err'); }
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function runRecalibration() {
+  toast('Rebuilding universe & reports — this takes a few minutes…', 'info');
+  try {
+    const ticker = document.getElementById('dl-ticker')?.value?.trim() || STATE.universe_size > 0 ? '' : null;
+    if (ticker) {
+      await downloadTicker(ticker);
+    } else {
+      const res  = await fetch('/api/state');
+      toast('Recalibration triggered. Refresh in 2–3 minutes.', 'info');
     }
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
 
-    function renderPortfolio() {
-      const account = app.state.account || {};
-      const positions = account.positions || [];
-      document.getElementById('holdingsBody').innerHTML = positions.length ? positions.map(row => `
-        <tr class="${row.unrealized_pnl >= 0 ? 'flash-green' : 'flash-red'}">
-          <td class="px-3 py-2 font-semibold">${row.ticker}</td>
-          <td class="px-3 py-2 text-right">${row.quantity}</td>
-          <td class="px-3 py-2 text-right">${money(row.average_price)}</td>
-          <td class="px-3 py-2 text-right">${money(row.current_value)}</td>
-          <td class="px-3 py-2 text-right ${row.unrealized_pnl >= 0 ? 'text-terminal-emerald' : 'text-terminal-rose'}">${money(row.unrealized_pnl)}</td>
-          <td class="px-3 py-2 text-right ${row.unrealized_pnl_pct >= 0 ? 'text-terminal-emerald' : 'text-terminal-rose'}">${num(row.unrealized_pnl_pct)}%</td>
-        </tr>`).join('') : '<tr><td class="px-3 py-4 text-terminal-muted" colspan="6">No active positions.</td></tr>';
-      document.getElementById('orderLog').textContent = (account.logs || []).join('\n');
+async function resetSession() {
+  try {
+    await fetch('/api/run_scan', {method:'POST'});
+    toast('Session reset', 'ok');
+    refreshState();
+  } catch(e) {}
+}
+
+async function placeOrder(forceSide) {
+  const ticker = document.getElementById('ord-ticker').value.trim().toUpperCase();
+  const side   = forceSide || document.getElementById('ord-side').value;
+  const qty    = parseInt(document.getElementById('ord-qty').value) || 1;
+  if (!ticker) { toast('Enter a ticker symbol', 'err'); return; }
+  const fb = document.getElementById('order-feedback');
+  fb.textContent = 'Placing order…';
+  try {
+    const res  = await fetch('/api/place_order', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ticker, side, quantity: qty})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      fb.textContent = `✓ ${data.order?.status} · fill ₹${data.order?.fill_price}`;
+      fb.style.color = 'var(--green)';
+      toast(`${side} ${ticker} × ${qty} → ${data.order?.status}`, 'ok');
+      refreshState();
+    } else {
+      fb.textContent = '✗ ' + data.error;
+      fb.style.color = 'var(--red)';
+      toast('Order failed: ' + data.error, 'err');
     }
+  } catch(e) {
+    fb.textContent = '✗ ' + e.message;
+    fb.style.color = 'var(--red)';
+  }
+}
 
-    function renderAll() {
-      renderDashboard();
-      renderReports();
-      renderStrategies();
-      renderPortfolio();
+async function downloadTicker() {
+  const ticker = document.getElementById('dl-ticker').value.trim().toUpperCase();
+  if (!ticker) { toast('Enter a ticker symbol', 'err'); return; }
+  const btn = document.getElementById('dl-btn');
+  const sp  = document.getElementById('dl-spinner');
+  const fb  = document.getElementById('dl-feedback');
+  btn.disabled = true; sp.style.display = 'inline-block';
+  fb.textContent = `Downloading ${ticker}…`;
+  try {
+    const res  = await fetch('/api/download_ticker', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ticker})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      fb.textContent = `✓ ${ticker} added and reports rebuilt`;
+      fb.style.color = 'var(--green)';
+      toast(`${ticker} imported successfully`, 'ok');
+      refreshState();
+    } else {
+      fb.textContent = '✗ ' + data.error;
+      fb.style.color = 'var(--red)';
+      toast('Download failed: ' + data.error, 'err');
     }
+  } catch(e) {
+    fb.textContent = '✗ ' + e.message;
+    fb.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false; sp.style.display = 'none';
+  }
+}
 
-    document.querySelectorAll('.tab').forEach(tab => tab.onclick = () => switchView(tab.dataset.view));
-    document.getElementById('assetSearch').oninput = renderReports;
-    document.getElementById('refreshReports').onclick = refreshState;
+async function toggleStrategy(name, btn) {
+  const enabled = !btn.classList.contains('on');
+  btn.classList.toggle('on', enabled);
+  btn.classList.toggle('off', !enabled);
+  try {
+    const res  = await fetch('/api/toggle_strategy', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({strategy: name, enabled})
+    });
+    const data = await res.json();
+    if (!data.ok) toast('Toggle failed: ' + data.error, 'err');
+    else toast(`${name.replace(/_/g,' ')} ${enabled?'enabled':'disabled'}`, 'info');
+  } catch(e) { toast('Error: '+e.message, 'err'); }
+}
 
-    document.getElementById('connectBtn').onclick = async () => {
-      try {
-        const payload = await api('/api/connect_zerodha', {
-          api_key: document.getElementById('apiKey').value,
-          api_secret: document.getElementById('apiSecret').value,
-          token: document.getElementById('apiToken').value
-        });
-        toast(payload.message);
-        renderAll();
-      } catch (error) {
-        toast(error.message, false);
-      }
-    };
+async function injectCustomStrategy() {
+  const name  = document.getElementById('cs-name').value.trim();
+  const cond  = document.getElementById('cs-cond').value.trim();
+  const status= document.getElementById('cs-status');
+  if (!name || !cond) { toast('Name and condition are required', 'err'); return; }
+  status.textContent = 'Compiling…';
+  try {
+    const res  = await fetch('/api/add_custom_strategy', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, condition: cond})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      status.style.color = 'var(--green)';
+      status.textContent = '✓ ' + data.message;
+      toast('Strategy injected: ' + name, 'ok');
+      refreshState();
+    } else {
+      status.style.color = 'var(--red)';
+      status.textContent = '✗ ' + data.error;
+      toast('Injection failed: ' + data.error, 'err');
+    }
+  } catch(e) {
+    status.textContent = '✗ ' + e.message;
+    status.style.color = 'var(--red)';
+  }
+}
 
-    document.getElementById('downloadBtn').onclick = async () => {
-      try {
-        toast('Downloading and recalibrating. This can take a bit.');
-        const payload = await api('/api/download_ticker', { ticker: document.getElementById('tickerInput').value });
-        toast(payload.message);
-        renderAll();
-      } catch (error) {
-        toast(error.message, false);
-      }
-    };
+async function connectZerodha() {
+  const api_key    = document.getElementById('cfg-apikey').value.trim();
+  const api_secret = document.getElementById('cfg-apisecret').value.trim();
+  const token      = document.getElementById('cfg-token').value.trim();
+  if (!api_key || !api_secret || !token) { toast('All three fields are required', 'err'); return; }
+  try {
+    const res  = await fetch('/api/connect_zerodha', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({api_key, api_secret, token})
+    });
+    const data = await res.json();
+    if (data.ok) { toast('Zerodha connected: ' + data.session?.mode, 'ok'); refreshState(); }
+    else           toast('Connection failed: ' + data.error, 'err');
+  } catch(e) { toast('Error: '+e.message, 'err'); }
+}
 
-    document.getElementById('injectBtn').onclick = async () => {
-      try {
-        toast('Compiling strategy and refreshing reports.');
-        const payload = await api('/api/add_custom_strategy', {
-          name: document.getElementById('customName').value,
-          condition: document.getElementById('customRule').value
-        });
-        toast(payload.message);
-        renderAll();
-      } catch (error) {
-        toast(error.message, false);
-      }
-    };
+/* ── TAB SWITCHING ─────────────────────────────── */
+function switchTab(name, iconEl) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
+  document.getElementById('pane-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (iconEl) iconEl.classList.add('active');
+  else document.querySelector(`.nav-icon[data-tab="${name}"]`)?.classList.add('active');
+  if (name === 'reports') loadReports();
+}
 
-    document.getElementById('placeOrder').onclick = async () => {
-      try {
-        const payload = await api('/api/place_order', {
-          ticker: document.getElementById('orderTicker').value,
-          side: document.getElementById('orderSide').value,
-          quantity: Number(document.getElementById('orderQty').value || 1)
-        });
-        toast(payload.message);
-        renderAll();
-        switchView('portfolio');
-      } catch (error) {
-        toast(error.message, false);
-      }
-    };
+/* ── HELPERS ───────────────────────────────────── */
+function fmt(v) {
+  if (v == null || isNaN(v)) return '—';
+  return '₹' + Math.round(v).toLocaleString('en-IN');
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function toast(msg, type='info') {
+  const wrap = document.getElementById('toast-wrap');
+  const el   = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+</script>
 
-    document.getElementById('runScan').onclick = async () => {
-      try {
-        const payload = await api('/api/run_scan', {});
-        toast(payload.message);
-        renderAll();
-        switchView('portfolio');
-      } catch (error) {
-        toast(error.message, false);
-      }
-    };
+<!-- Flask injects initial state here -->
+<script id="__initial_state__" type="application/json">{{ initial_state | safe }}</script>
 
-    renderAll();
-    setInterval(refreshState, 10000);
-  </script>
 </body>
 </html>
