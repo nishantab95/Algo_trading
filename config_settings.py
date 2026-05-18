@@ -1,57 +1,46 @@
 """
 Unified runtime configuration for the interactive algo trading terminal.
 
-CHANGES vs original:
-  - Added DEFAULT_STOP_LOSS_PCT, DEFAULT_TAKE_PROFIT_PCT, DEFAULT_TRAILING_STOP_PCT
-    (used by bot.py exit logic)
-  - Added PER_TRADE_RISK_PCT (already existed, confirmed present)
-  - LEGACY_DATA_SOURCE path left as-is (your local path, do not push to git)
+This module intentionally contains both immutable structural paths and mutable
+session state used by the Flask cockpit, paper trading engine, and strategy
+selection layer.
 """
 
 from __future__ import annotations
 
 import os
 
-BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT  = BASE_DIR
-DATA_DIR      = os.path.join(BASE_DIR, "data", "raw")
-REPORTS_DIR   = os.path.join(BASE_DIR, "reports")
-CONSOLIDATED_FILE     = os.path.join(BASE_DIR, "data", "processed_universe.csv")
-STRATEGY_REPORT_FILE  = os.path.join(REPORTS_DIR, "global_strategy_summary.csv")
-ASSET_REPORT_FILE     = os.path.join(REPORTS_DIR, "asset_performance_leaderboard.csv")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = BASE_DIR
 
-# ── Capital & position limits ─────────────────────────────────────────────────
-INITIAL_CAPITAL       = 1_000_000.00   # ₹10L paper capital
+DATA_DIR = os.path.join(BASE_DIR, "data", "raw")
+REPORTS_DIR = os.path.join(BASE_DIR, "reports")
+CONSOLIDATED_FILE = os.path.join(BASE_DIR, "data", "processed_universe.csv")
+STRATEGY_REPORT_FILE = os.path.join(REPORTS_DIR, "global_strategy_summary.csv")
+ASSET_REPORT_FILE = os.path.join(REPORTS_DIR, "asset_performance_leaderboard.csv")
+
+LEGACY_DATA_SOURCE = r"D:\Git\algo trading\data_strategies\data"
+
+INITIAL_CAPITAL = 1000000.00
 MAX_PORTFOLIO_POSITIONS = 10
-
-# ── Risk parameters ───────────────────────────────────────────────────────────
-PER_TRADE_RISK_PCT        = 0.01   # 1% of cash balance risked per trade (ATR sizing)
-
-# Exit defaults — passed to execute_order() when not explicitly overridden
-# Set any to 0.0 to disable that exit type
-DEFAULT_STOP_LOSS_PCT     = 0.05   # 5% below entry → hard stop
-DEFAULT_TAKE_PROFIT_PCT   = 0.15   # 15% above entry → take profit
-DEFAULT_TRAILING_STOP_PCT = 0.07   # 7% trailing stop below peak
-
-# ── Data / broker settings ────────────────────────────────────────────────────
-BAR_INTERVAL   = "1d"
+PER_TRADE_RISK_PCT = 0.01
+BAR_INTERVAL = "1d"
 YFINANCE_SUFFIX = ".NS"
-EXCHANGE_CODE   = "NSE"
+EXCHANGE_CODE = "NSE"
 
 DASHBOARD_HOST = "127.0.0.1"
 DASHBOARD_PORT = 5000
 
-# ── Runtime mutable state (do NOT persist to disk) ────────────────────────────
-ACTIVE_PORTFOLIO: list[dict]  = []
-ZERODHA_CONNECTED             = False
-API_KEY                       = ""
-API_SECRET                    = ""
-ACCESS_TOKEN                  = ""
-REQUEST_TOKEN                 = ""
-CUSTOM_STRATEGIES: dict[str, str] = {}
-ACTIVE_STRATEGIES: set[str]       = set()
+ACTIVE_PORTFOLIO: list[dict] = []
+ZERODHA_CONNECTED = False
+API_KEY = ""
+API_SECRET = ""
+ACCESS_TOKEN = ""
+REQUEST_TOKEN = ""
 
-# ── Nifty 50 / large-cap universe ─────────────────────────────────────────────
+CUSTOM_STRATEGIES: dict[str, str] = {}
+ACTIVE_STRATEGIES: set[str] = set()
+
 TICKER_LIST = [
     "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "HINDUNILVR", "ITC",
     "SBIN", "BHARTIARTL", "KOTAKBANK", "LT", "AXISBANK", "ASIANPAINT", "MARUTI",
@@ -98,9 +87,6 @@ REPORT_DISPLAY_COLUMNS = [
     "Market_Coverage_Hit_Rate_pct",
 ]
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Utility functions
-# ─────────────────────────────────────────────────────────────────────────────
 
 def ensure_directories() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -114,7 +100,7 @@ def all_strategy_columns() -> list[str]:
 def enabled_strategy_columns() -> list[str]:
     if not ACTIVE_STRATEGIES:
         return all_strategy_columns()
-    return [s for s in all_strategy_columns() if s in ACTIVE_STRATEGIES]
+    return [strategy for strategy in all_strategy_columns() if strategy in ACTIVE_STRATEGIES]
 
 
 def set_strategy_enabled(strategy_name: str, enabled: bool) -> None:
@@ -139,15 +125,12 @@ def add_custom_strategy(strategy_name: str, condition: str) -> None:
     ACTIVE_STRATEGIES.add(clean_name)
 
 
-def update_zerodha_session(
-    api_key: str, api_secret: str,
-    access_token: str, request_token: str = ""
-) -> None:
+def update_zerodha_session(api_key: str, api_secret: str, access_token: str, request_token: str = "") -> None:
     global ZERODHA_CONNECTED, API_KEY, API_SECRET, ACCESS_TOKEN, REQUEST_TOKEN
-    API_KEY        = api_key.strip()
-    API_SECRET     = api_secret.strip()
-    ACCESS_TOKEN   = access_token.strip()
-    REQUEST_TOKEN  = request_token.strip()
+    API_KEY = api_key.strip()
+    API_SECRET = api_secret.strip()
+    ACCESS_TOKEN = access_token.strip()
+    REQUEST_TOKEN = request_token.strip()
     ZERODHA_CONNECTED = bool(API_KEY and API_SECRET and (ACCESS_TOKEN or REQUEST_TOKEN))
 
 
@@ -169,13 +152,13 @@ def load_tickers_from_data_dir() -> list[str]:
     if not os.path.isdir(DATA_DIR):
         return []
     return sorted(
-        os.path.splitext(f)[0].upper()
-        for f in os.listdir(DATA_DIR)
-        if f.lower().endswith(".csv")
+        os.path.splitext(filename)[0].upper()
+        for filename in os.listdir(DATA_DIR)
+        if filename.lower().endswith(".csv")
     )
 
 
 def get_full_ticker_universe() -> list[str]:
-    universe = {to_file_symbol(t) for t in TICKER_LIST}
+    universe = set(to_file_symbol(ticker) for ticker in TICKER_LIST)
     universe.update(load_tickers_from_data_dir())
     return sorted(universe)

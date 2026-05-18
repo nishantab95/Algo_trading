@@ -251,7 +251,10 @@ def create_flask_app():
             return jsonify({"ok": True, "message": "Signal scan complete.", "summary": summary, "state": _state_payload()})
         except Exception as exc:
             return jsonify({"ok": False, "error": str(exc)}), 400
-
+    @app.route("/api/reset_session", methods=["POST"])
+    def api_reset_session():
+        bot.reset_session()
+        return jsonify({"ok": True, "message": "Paper session reset.", "state": _state_payload()})
     return app
 
 
