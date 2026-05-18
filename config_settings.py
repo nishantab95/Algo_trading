@@ -1,46 +1,67 @@
 """
 Unified runtime configuration for the interactive algo trading terminal.
 
-This module intentionally contains both immutable structural paths and mutable
-session state used by the Flask cockpit, paper trading engine, and strategy
-selection layer.
+FIXES vs previous version:
+  - Added DEFAULT_STOP_LOSS_PCT, DEFAULT_TAKE_PROFIT_PCT, DEFAULT_TRAILING_STOP_PCT
+    (required by bot.py execute_order — was causing AttributeError on startup)
+  - RAW_DATA_DIR points to D:\\Markets\\nifty (your actual raw data)
+  - LEGACY_DATA_SOURCE updated to D:\\Markets\\nifty
+  - DATA_DIR keeps processed copies inside the project (never overwrites source)
+  - get_full_ticker_universe() now also scans D:\\Markets\\nifty automatically
 """
 
 from __future__ import annotations
 
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = BASE_DIR
 
-DATA_DIR = os.path.join(BASE_DIR, "data", "raw")
-REPORTS_DIR = os.path.join(BASE_DIR, "reports")
-CONSOLIDATED_FILE = os.path.join(BASE_DIR, "data", "processed_universe.csv")
+# ── Your raw EOD CSV source — read-only, never written to by the bot
+RAW_DATA_DIR = r"D:\Markets\nifty"
+
+# ── Bot-managed processed CSVs (copies from RAW_DATA_DIR + yfinance downloads)
+DATA_DIR          = os.path.join(BASE_DIR, "data", "raw")
+
+# ── Reports and consolidated feature file
+REPORTS_DIR          = os.path.join(BASE_DIR, "reports")
+CONSOLIDATED_FILE    = os.path.join(BASE_DIR, "data", "processed_universe.csv")
 STRATEGY_REPORT_FILE = os.path.join(REPORTS_DIR, "global_strategy_summary.csv")
-ASSET_REPORT_FILE = os.path.join(REPORTS_DIR, "asset_performance_leaderboard.csv")
+ASSET_REPORT_FILE    = os.path.join(REPORTS_DIR, "asset_performance_leaderboard.csv")
 
-LEGACY_DATA_SOURCE = r"D:\Git\algo trading\data_strategies\data"
+# ── Legacy source: now correctly points to D:\Markets\nifty
+LEGACY_DATA_SOURCE = RAW_DATA_DIR
 
-INITIAL_CAPITAL = 1000000.00
+# ── Capital & risk
+INITIAL_CAPITAL         = 1_000_000.00
 MAX_PORTFOLIO_POSITIONS = 10
-PER_TRADE_RISK_PCT = 0.01
-BAR_INTERVAL = "1d"
-YFINANCE_SUFFIX = ".NS"
-EXCHANGE_CODE = "NSE"
+PER_TRADE_RISK_PCT      = 0.01
 
+# ── Exit defaults — REQUIRED by bot.py execute_order()
+DEFAULT_STOP_LOSS_PCT     = 0.05
+DEFAULT_TAKE_PROFIT_PCT   = 0.15
+DEFAULT_TRAILING_STOP_PCT = 0.07
+
+# ── Data / market settings
+BAR_INTERVAL    = "1d"
+YFINANCE_SUFFIX = ".NS"
+EXCHANGE_CODE   = "NSE"
+
+# ── Dashboard
 DASHBOARD_HOST = "127.0.0.1"
 DASHBOARD_PORT = 5000
 
-ACTIVE_PORTFOLIO: list[dict] = []
-ZERODHA_CONNECTED = False
-API_KEY = ""
-API_SECRET = ""
-ACCESS_TOKEN = ""
-REQUEST_TOKEN = ""
-
+# ── Runtime mutable state
+ACTIVE_PORTFOLIO: list[dict]      = []
+ZERODHA_CONNECTED                 = False
+API_KEY                           = ""
+API_SECRET                        = ""
+ACCESS_TOKEN                      = ""
+REQUEST_TOKEN                     = ""
 CUSTOM_STRATEGIES: dict[str, str] = {}
-ACTIVE_STRATEGIES: set[str] = set()
+ACTIVE_STRATEGIES: set[str]       = set()
 
+# ── Nifty 50 universe
 TICKER_LIST = [
     "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "HINDUNILVR", "ITC",
     "SBIN", "BHARTIARTL", "KOTAKBANK", "LT", "AXISBANK", "ASIANPAINT", "MARUTI",
@@ -53,38 +74,20 @@ TICKER_LIST = [
 ]
 
 BASE_STRATEGY_COLUMNS = [
-    "Volatility_Breakout",
-    "Golden_Cross",
-    "EMA_Crossover",
-    "RSI_Oversold",
-    "RSI_Overbought",
-    "MACD_Histogram_Momentum",
-    "Bollinger_Mean_Reversion",
-    "Volume_Spike",
-    "Trend_Filter",
-    "Turtle_Breakout",
-    "BB_Squeeze_Breakout",
-    "SuperTrend_Mimic",
-    "Momentum_20",
-    "EMA21_Mean_Reversion",
-    "Support_Bounce",
+    "Volatility_Breakout", "Golden_Cross", "EMA_Crossover",
+    "RSI_Oversold", "RSI_Overbought", "MACD_Histogram_Momentum",
+    "Bollinger_Mean_Reversion", "Volume_Spike", "Trend_Filter",
+    "Turtle_Breakout", "BB_Squeeze_Breakout", "SuperTrend_Mimic",
+    "Momentum_20", "EMA21_Mean_Reversion", "Support_Bounce",
 ]
 
 STRATEGY_COLUMNS = BASE_STRATEGY_COLUMNS
 
 REPORT_DISPLAY_COLUMNS = [
-    "Strategy",
-    "Avg_Return_Per_Asset_pct",
-    "Median_Return_pct",
-    "Total_Trades_Executed",
-    "Average_Win_Rate_pct",
-    "Global_Profit_Factor",
-    "Avg_Win_Return_pct",
-    "Avg_Loss_Return_pct",
-    "Win_Loss_Ratio",
-    "Max_Drawdown_pct",
-    "Sharpe_Ratio",
-    "Market_Coverage_Hit_Rate_pct",
+    "Strategy", "Avg_Return_Per_Asset_pct", "Median_Return_pct",
+    "Total_Trades_Executed", "Average_Win_Rate_pct", "Global_Profit_Factor",
+    "Avg_Win_Return_pct", "Avg_Loss_Return_pct", "Win_Loss_Ratio",
+    "Max_Drawdown_pct", "Sharpe_Ratio", "Market_Coverage_Hit_Rate_pct",
 ]
 
 
@@ -100,7 +103,7 @@ def all_strategy_columns() -> list[str]:
 def enabled_strategy_columns() -> list[str]:
     if not ACTIVE_STRATEGIES:
         return all_strategy_columns()
-    return [strategy for strategy in all_strategy_columns() if strategy in ACTIVE_STRATEGIES]
+    return [s for s in all_strategy_columns() if s in ACTIVE_STRATEGIES]
 
 
 def set_strategy_enabled(strategy_name: str, enabled: bool) -> None:
@@ -125,11 +128,14 @@ def add_custom_strategy(strategy_name: str, condition: str) -> None:
     ACTIVE_STRATEGIES.add(clean_name)
 
 
-def update_zerodha_session(api_key: str, api_secret: str, access_token: str, request_token: str = "") -> None:
+def update_zerodha_session(
+    api_key: str, api_secret: str,
+    access_token: str, request_token: str = ""
+) -> None:
     global ZERODHA_CONNECTED, API_KEY, API_SECRET, ACCESS_TOKEN, REQUEST_TOKEN
-    API_KEY = api_key.strip()
-    API_SECRET = api_secret.strip()
-    ACCESS_TOKEN = access_token.strip()
+    API_KEY       = api_key.strip()
+    API_SECRET    = api_secret.strip()
+    ACCESS_TOKEN  = access_token.strip()
     REQUEST_TOKEN = request_token.strip()
     ZERODHA_CONNECTED = bool(API_KEY and API_SECRET and (ACCESS_TOKEN or REQUEST_TOKEN))
 
@@ -149,16 +155,33 @@ def to_file_symbol(symbol: str) -> str:
 
 
 def load_tickers_from_data_dir() -> list[str]:
+    """Tickers in bot-managed DATA_DIR (processed copies)."""
     if not os.path.isdir(DATA_DIR):
         return []
     return sorted(
-        os.path.splitext(filename)[0].upper()
-        for filename in os.listdir(DATA_DIR)
-        if filename.lower().endswith(".csv")
+        os.path.splitext(f)[0].upper()
+        for f in os.listdir(DATA_DIR)
+        if f.lower().endswith(".csv")
+    )
+
+
+def load_tickers_from_raw_dir() -> list[str]:
+    """Tickers in your D:\\Markets\\nifty raw source folder."""
+    if not os.path.isdir(RAW_DATA_DIR):
+        return []
+    return sorted(
+        os.path.splitext(f)[0].upper()
+        for f in os.listdir(RAW_DATA_DIR)
+        if f.lower().endswith(".csv")
     )
 
 
 def get_full_ticker_universe() -> list[str]:
-    universe = set(to_file_symbol(ticker) for ticker in TICKER_LIST)
+    """
+    Union of TICKER_LIST + DATA_DIR + RAW_DATA_DIR.
+    D:\\Markets\\nifty is scanned automatically — every CSV there is included.
+    """
+    universe = {to_file_symbol(t) for t in TICKER_LIST}
     universe.update(load_tickers_from_data_dir())
+    universe.update(load_tickers_from_raw_dir())
     return sorted(universe)
