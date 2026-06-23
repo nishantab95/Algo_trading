@@ -425,9 +425,9 @@ The ML notebook additionally imports packages not declared in `requirements.txt`
 
 ## 17. Final assessment
 
-The project has a clear educational architecture and a useful dashboard shell. Its strongest qualities are modularity, readable signal definitions, safe copying of the external data source, shifted signals, defensive metric calculations, and a paper default.
+This was the assessment of the original prototype. Stage 1 subsequently fixed the destructive dashboard actions, added durable paper state, and isolated broker boundaries. Stage 2 created a separate completed-trade engine so new research no longer depends on the legacy signal-day report. Stage 3 now separates strategy configuration from execution simulation.
 
-The largest conceptual gap is that the research engine, strategy selector, and execution engine do not yet describe the same trading system. The largest operational gap is that live orders are not represented by authoritative broker-synchronized state. Closing those two gaps—and fixing the dashboard endpoint mistakes—would move the code from an impressive prototype toward a system whose behavior can be measured and trusted.
+The remaining operational gap is still live broker reconciliation; live trading therefore remains disabled. The remaining research gap is governance across a very large hypothesis library: data versioning, false-discovery control, redundancy analysis, and nested out-of-sample evaluation are now more important than adding additional rules.
 
 ## 18. Stage 1–3 architecture update
 
