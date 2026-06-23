@@ -55,6 +55,10 @@ class BacktestService:
     def run(self, config: BacktestConfig, data: pd.DataFrame | None = None, persist: bool = True) -> BacktestResult:
         registry = self.database.query("""SELECT strategy_id,name FROM strategy_registry WHERE strategy_id=? UNION SELECT strategy_id,name FROM custom_strategies WHERE strategy_id=? UNION SELECT strategy_id,name FROM strategy_definitions WHERE strategy_id=? UNION SELECT combo_id AS strategy_id,name FROM combo_strategy_definitions WHERE combo_id=?""", (config.strategy_id, config.strategy_id,config.strategy_id,config.strategy_id))
         if not registry: raise ValueError(f"Strategy is not registered: {config.strategy_id}")
+        direction_rows=self.database.query("SELECT direction FROM strategy_definitions WHERE strategy_id=?",(config.strategy_id,))
+        if direction_rows and direction_rows[0]["direction"]=="short" and config.direction_mode=="long_only": raise ValueError("Short-only strategy cannot run in long-only mode")
+        combo_direction=self.database.query("SELECT entry_json FROM combo_strategy_definitions WHERE combo_id=?",(config.strategy_id,))
+        if combo_direction and json.loads(combo_direction[0]["entry_json"]).get("direction")=="short" and config.direction_mode=="long_only": raise ValueError("Short combo cannot run in long-only mode")
         source = data.copy() if data is not None else self.load_data(config)
         if data is not None and config.strategy_id not in source.columns: source=self._attach_dynamic_signal(config,source)
         created = datetime.now(timezone.utc).isoformat()
