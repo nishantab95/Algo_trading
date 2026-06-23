@@ -35,6 +35,8 @@ def build_combo_catalog():
             components=tuple(mapped[0]) if mapped else ({"type":"data_requirement","ref":"AUDITED_COMPONENT_MAPPING","required":True},)
             logic={"mode":mapped[1],"threshold":len(components)} if mapped else {"mode":"all","threshold":1}
             rows.append(ComboDefinition(combo_id,name,category,f"Config-driven combo research definition: {name}.",components,logic,status=status,tags=(category,"combo"),unsupported_reason=None if mapped else "Component mapping or required auxiliary data is unavailable"))
+    ids=[row.combo_id for row in rows]
+    if len(ids)!=len(set(ids)): raise ValueError("Duplicate combo IDs")
     return rows
 COMBO_CATALOG=build_combo_catalog()
 

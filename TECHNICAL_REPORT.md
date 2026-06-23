@@ -592,3 +592,9 @@ The terminal now includes:
 The project has progressed from a monolithic signal dashboard into a layered research platform: durable state and broker safety in Stage 1, portfolio simulation in Stage 2, and a configurable strategy factory in Stage 3. The strongest architectural improvement is the separation between signal definition and execution simulation.
 
 The next priority should not be adding more strategies. It should be experiment governance: dataset/version manifests, historical-universe membership, correlation and redundancy analysis, false-discovery controls, nested walk-forward evaluation, and reproducible comparisons. Live execution should remain disabled.
+
+### 18.11 Verification status
+
+The repository includes 36 Stage 3 pytest cases in addition to the Stage 1 and Stage 2 suites. They cover catalog sizes, metadata, uniqueness, validation statuses, primitives and logic operators, synthetic base/combo signals, explanation content, API behavior, Stage 2 routing, SQLite persistence, disabled-state handling, and invalid primitive rejection.
+
+During this report update, static patch checks passed and the source catalog was counted at 230 requested base names plus three options simulation definitions and 120 combo names. Runtime pytest and browser verification could not be executed in the current environment because the Windows Python launcher reports that no Python runtime is installed. These tests must be run after installing Python before Stage 3 is treated as acceptance-tested.

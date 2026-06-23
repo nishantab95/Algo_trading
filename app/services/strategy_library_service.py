@@ -41,6 +41,7 @@ class StrategyLibraryService:
         if not rows: raise ValueError(f"Unknown strategy: {strategy_id}")
         item=self._decode(rows[0]); definition=CatalogStrategy(**item["config"])
         item["explanation_example"]=explain_signal(definition,1,{key:"current value" for key in item["required_columns"][:6]},["configured entry rules"],[])
+        item["latest_signal_status"]="not_evaluated; run recalibration or backtest to generate a dated signal"
         return item
     def definition(self,strategy_id): return CatalogStrategy(**self.get(strategy_id)["config"])
     def toggle(self,strategy_id,enabled):

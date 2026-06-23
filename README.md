@@ -162,6 +162,8 @@ pytest -q
 
 Tests cover schema initialization, persistence, reset, ATR sizing, registry loading, custom rules, duplicate risk, broker fail-closed behavior, API envelopes, and corrected UI actions.
 
+Stage 2 and Stage 3 suites additionally cover execution timing, completed-trade lifecycle, costs, sizing, metrics, 230+ strategy definitions, 120 combos, primitive truth tables, validation, explanations, persistence, and Stage 2 routing.
+
 ## Live-trading warning
 
 Live trading is disabled by default and the Stage 1 broker route refuses activation. Do not enable `ALGO_LIVE_TRADING_ENABLED`. Broker reconciliation, durable live order lifecycle, partial fills, exchange calendars, comprehensive loss controls, authentication, and operational monitoring are still required.
