@@ -12,12 +12,17 @@ class ComboStrategyService:
         return row
     def list(self): return [self._decode(row) for row in self.registry.list()]
     def get(self,combo_id): return self._decode(self.registry.get(combo_id))
-    def save(self,payload):
-        if not payload.get("combo_id"): payload["combo_id"]="CUSTOM_COMBO_"+uuid.uuid4().hex[:10].upper()
+    def save(self,payload,allow_existing=False):
+        supplied_id=payload.get("combo_id")
+        if not supplied_id: payload["combo_id"]="CUSTOM_COMBO_"+uuid.uuid4().hex[:10].upper()
+        elif not allow_existing:
+            try: self.registry.get(supplied_id)
+            except ValueError: pass
+            else: raise ValueError(f"Duplicate combo ID: {supplied_id}")
         validation=self.validate_payload(payload)
         if validation["errors"]: raise ValueError("; ".join(validation["errors"]))
         payload["status"]=validation["status"]; return self._decode(self.registry.save(payload))
-    def update(self,combo_id,payload): payload={**self.get(combo_id),**payload,"combo_id":combo_id}; return self.save(payload)
+    def update(self,combo_id,payload): payload={**self.get(combo_id),**payload,"combo_id":combo_id}; return self.save(payload,allow_existing=True)
     def validate_payload(self,payload): return validate_combo(payload,{item["strategy_id"] for item in self.library.list()})
     def validate(self,combo_id): return self.validate_payload(self.get(combo_id))
     def duplicate(self,combo_id):

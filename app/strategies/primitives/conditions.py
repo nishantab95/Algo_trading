@@ -37,7 +37,10 @@ def rsi_above(df,level): return operand(df,"RSI_14")>level
 def rsi_below(df,level): return operand(df,"RSI_14")<level
 def macd_bullish(df): return operand(df,"MACD")>operand(df,"MACD_Signal")
 def macd_bearish(df): return operand(df,"MACD")<operand(df,"MACD_Signal")
-def relative_strength_rank(df,*_args): raise KeyError("relative strength rank requires cross-sectional ranking data")
+def macd_histogram_positive(df): return operand(df,"MACD_Hist")>0
+def macd_histogram_rising(df): x=operand(df,"MACD_Hist"); return x>x.shift(1)
+def relative_strength_rank_if_available(df,minimum=80): return operand(df,"Relative_Strength_Rank")>=minimum
+def relative_strength_rank(df,minimum=80): return relative_strength_rank_if_available(df,minimum)
 def atr_above_percentile(df,window=100,percentile=.8): x=operand(df,"ATR_14"); return x>x.rolling(window).quantile(percentile)
 def atr_below_percentile(df,window=100,percentile=.2): x=operand(df,"ATR_14"); return x<x.rolling(window).quantile(percentile)
 def bollinger_squeeze(df,window=20): x=operand(df,"Bollinger_Width"); return x<=x.rolling(window).min()
@@ -47,8 +50,13 @@ def volatility_breakout(df): return (df["Close"]>operand(df,"Bollinger_Upper"))&
 def volume_above_sma(df,multiple=1): return df["Volume"]>operand(df,"Volume_SMA_20")*multiple
 def relative_volume_above(df,multiple=2): return volume_above_sma(df,multiple)
 def volume_zscore_above(df,level=1.5): return operand(df,"Volume_Z_Score")>level
-def obv_breakout(df,*_args): raise KeyError("OBV is unavailable")
-def mfi_signal(df,*_args): raise KeyError("MFI is unavailable")
+def high_volume_breakout(df,window=20,multiple=1.5): return rolling_high_break(df,window)&relative_volume_above(df,multiple)
+def low_volume_pullback(df,column="EMA_21",multiple=.8,tolerance=.01): return pullback_to(df,column,tolerance,"long")&(df["Volume"]<operand(df,"Volume_SMA_20")*multiple)
+def obv_breakout_if_available(df,window=20): x=operand(df,"OBV"); return x>x.rolling(window).max().shift(1)
+def mfi_signal_if_available(df,level=20,direction="long"):
+    x=operand(df,"MFI"); return x<level if direction=="long" else x>level
+def obv_breakout(df,window=20): return obv_breakout_if_available(df,window)
+def mfi_signal(df,level=20,direction="long"): return mfi_signal_if_available(df,level,direction)
 def inside_bar(df): return (df["High"]<df["High"].shift(1))&(df["Low"]>df["Low"].shift(1))
 def outside_bar(df): return (df["High"]>df["High"].shift(1))&(df["Low"]<df["Low"].shift(1))
 def bullish_engulfing(df): return (df["Close"]>df["Open"])&(df["Close"].shift(1)<df["Open"].shift(1))&(df["Close"]>=df["Open"].shift(1))&(df["Open"]<=df["Close"].shift(1))
@@ -60,6 +68,8 @@ def shooting_star(df):
 def doji(df,threshold=.1): return (df["Close"]-df["Open"]).abs()<=((df["High"]-df["Low"])*threshold)
 def narrow_range(df,window=7): x=df["High"]-df["Low"]; return x<=x.rolling(window).min()
 def wide_range(df,window=20,multiple=1.5): x=df["High"]-df["Low"]; return x>x.rolling(window).mean()*multiple
+def narrow_range_7(df): return narrow_range(df,7)
+def wide_range_candle(df,window=20,multiple=1.5): return wide_range(df,window,multiple)
 def previous_day_high_break(df): return df["Close"]>df["High"].shift(1)
 def previous_day_low_break(df): return df["Close"]<df["Low"].shift(1)
 def rolling_high_break(df,window=20): return df["Close"]>df["High"].rolling(window).max().shift(1)
@@ -74,10 +84,16 @@ def resistance_rejection(df,window=50,tolerance=.01):
     resistance=df["High"].rolling(window).max(); close_location=(df["Close"]-df["Low"])/(df["High"]-df["Low"]).replace(0,np.nan); return (df["High"]>=resistance*(1-tolerance))&(close_location<.35)
 def pullback_to(df,column,tolerance=.01,direction="long"):
     level=operand(df,column); near=(df["Low"]<=level*(1+tolerance))&(df["Close"]>=level) if direction=="long" else (df["High"]>=level*(1-tolerance))&(df["Close"]<=level); return near
+def pullback_to_ema(df,period=21,tolerance=.01): return pullback_to(df,f"EMA_{period}",tolerance,"long")
+def pullback_to_sma(df,period=20,tolerance=.01): return pullback_to(df,f"SMA_{period}",tolerance,"long")
+def pullback_to_support(df,window=50,tolerance=.01): return support_bounce(df,window,tolerance)
+def pullback_after_breakout(df,window=20,tolerance=.02):
+    level=df["High"].rolling(window).max().shift(2); broke=df["Close"].shift(1)>level; return broke&(df["Low"]<=level*(1+tolerance))&(df["Close"]>=level)
+def rsi_reset_in_uptrend(df,lower=40,upper=50): return (df["Close"]>operand(df,"EMA_200"))&operand(df,"RSI_14").between(lower,upper)
 
 
 PRIMITIVES: dict[str,Callable] = {name:value for name,value in list(globals().items()) if callable(value) and name in {
-"greater_than","less_than","greater_equal","less_equal","equal","between","outside_range","crossover_above","crossover_below","crossunder","cross_above_level","cross_below_level","price_above_ma","price_below_ma","ma_slope_positive","ma_slope_negative","higher_high","higher_low","lower_high","lower_low","trend_alignment","roc_above","roc_below","rsi_above","rsi_below","macd_bullish","macd_bearish","relative_strength_rank","atr_above_percentile","atr_below_percentile","bollinger_squeeze","bollinger_expansion","volatility_contraction","volatility_breakout","volume_above_sma","relative_volume_above","volume_zscore_above","obv_breakout","mfi_signal","inside_bar","outside_bar","bullish_engulfing","bearish_engulfing","hammer","shooting_star","doji","narrow_range","wide_range","previous_day_high_break","previous_day_low_break","weekly_high_break","weekly_low_break","monthly_high_break","monthly_low_break","rolling_high_break","rolling_low_break","support_bounce","resistance_rejection","pullback_to"}}
+"greater_than","less_than","greater_equal","less_equal","equal","between","outside_range","crossover_above","crossover_below","crossunder","cross_above_level","cross_below_level","price_above_ma","price_below_ma","ma_slope_positive","ma_slope_negative","higher_high","higher_low","lower_high","lower_low","trend_alignment","roc_above","roc_below","rsi_above","rsi_below","macd_bullish","macd_bearish","macd_histogram_positive","macd_histogram_rising","relative_strength_rank_if_available","relative_strength_rank","atr_above_percentile","atr_below_percentile","bollinger_squeeze","bollinger_expansion","volatility_contraction","volatility_breakout","volume_above_sma","relative_volume_above","volume_zscore_above","high_volume_breakout","low_volume_pullback","obv_breakout_if_available","mfi_signal_if_available","obv_breakout","mfi_signal","inside_bar","outside_bar","bullish_engulfing","bearish_engulfing","hammer","shooting_star","doji","narrow_range","wide_range","narrow_range_7","wide_range_candle","previous_day_high_break","previous_day_low_break","weekly_high_break","weekly_low_break","monthly_high_break","monthly_low_break","rolling_high_break","rolling_low_break","support_bounce","resistance_rejection","pullback_to","pullback_to_ema","pullback_to_sma","pullback_to_support","pullback_after_breakout","rsi_reset_in_uptrend"}}
 
 
 def evaluate_primitive(df:pd.DataFrame,name:str,args=None):

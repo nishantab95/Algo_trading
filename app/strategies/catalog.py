@@ -111,3 +111,7 @@ def build_catalog() -> list[CatalogStrategy]:
     return definitions
 
 BASE_STRATEGY_CATALOG=build_catalog()
+
+def load_base_strategy_catalog():
+    """Return a fresh list so callers cannot mutate the process-wide catalogue."""
+    return list(BASE_STRATEGY_CATALOG)

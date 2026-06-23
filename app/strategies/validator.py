@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import inspect
+
 from app.strategies.primitives.conditions import PRIMITIVES
 from app.strategies.schemas import CatalogStrategy, ValidationResult
 
@@ -27,6 +29,20 @@ def validate_strategy(strategy:CatalogStrategy,available_columns:set[str]|None=N
     if not strategy.exit: warnings.append("No explicit exit configuration; Stage 2 defaults will be used")
     unknown=sorted(set(_primitive_names(strategy.entry)+_primitive_names(strategy.filters))-set(PRIMITIVES))
     if unknown: errors.append(f"Unknown primitives: {', '.join(unknown)}")
+    def inspect_node(node):
+        if isinstance(node,str):
+            compact=node.replace(" ","").lower()
+            if "shift(-" in compact or "future" in compact: errors.append("Possible future-data usage detected")
+        elif isinstance(node,list):
+            for item in node: inspect_node(item)
+        elif isinstance(node,dict):
+            if "primitive" in node and node["primitive"] in PRIMITIVES:
+                args=node.get("args",[]); args=args if isinstance(args,list) else [args]
+                try: inspect.signature(PRIMITIVES[node["primitive"]]).bind(None,*args)
+                except TypeError as exc: errors.append(f"Bad parameters for {node['primitive']}: {exc}")
+            for value in node.values():
+                if isinstance(value,(dict,list)): inspect_node(value)
+    inspect_node(strategy.entry); inspect_node(strategy.filters)
     if strategy.timeframe != "daily": errors.append(f"{strategy.name} requires {strategy.timeframe} data; only daily data is available")
     if strategy.asset_class == "options_simulation": warnings.append("Options strategy is simulation-only until F&O data is available")
     missing=[]

@@ -40,6 +40,10 @@ def build_combo_catalog():
     return rows
 COMBO_CATALOG=build_combo_catalog()
 
+def load_combo_strategy_catalog():
+    """Return a fresh list so callers cannot mutate the process-wide catalogue."""
+    return list(COMBO_CATALOG)
+
 class ComboRegistry:
     def __init__(self,database:Database|None=None): self.database=database or get_database()
     def load_catalog(self):

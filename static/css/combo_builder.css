@@ -1,0 +1,3 @@
+.combo-component { border-left: 2px solid var(--accent); }
+.combo-builder .warning-panel { border-color: var(--amber); }
+.combo-builder pre { max-height: 26rem; overflow: auto; }

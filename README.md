@@ -157,12 +157,22 @@ Example:
 ## Test
 
 ```powershell
-pytest -q
+python -m pytest -q
+python -m pytest tests/test_strategy_factory_stage3.py -q
 ```
 
 Tests cover schema initialization, persistence, reset, ATR sizing, registry loading, custom rules, duplicate risk, broker fail-closed behavior, API envelopes, and corrected UI actions.
 
 Stage 2 and Stage 3 suites additionally cover execution timing, completed-trade lifecycle, costs, sizing, metrics, 230+ strategy definitions, 120 combos, primitive truth tables, validation, explanations, persistence, and Stage 2 routing.
+
+Verify the config-driven catalog counts without starting Flask:
+
+```powershell
+python -c "from app.strategies.catalog import load_base_strategy_catalog; print('base_count=', len(load_base_strategy_catalog()))"
+python -c "from app.strategies.combos.combo_registry import load_combo_strategy_catalog; print('combo_count=', len(load_combo_strategy_catalog()))"
+```
+
+The repository currently contains 233 base definitions (230 named equity/portfolio research definitions plus three options simulations) and 120 combo definitions by static source inspection. These counts must also be confirmed by the commands above in the installed project environment.
 
 ## Live-trading warning
 
@@ -187,4 +197,4 @@ Live trading is disabled by default and the Stage 1 broker route refuses activat
 
 ## Roadmap
 
-Stage 4 should add experiment governance: versioned datasets, historical-universe membership, false-discovery controls, nested walk-forward evaluation, strategy-correlation analysis, and reproducible experiment comparison. Live execution should remain disabled.
+Stage 4 must not begin until the full pytest suite, catalog import checks, Flask startup, and browser smoke test pass in an environment with Python installed. A future Stage 4 could then add experiment governance: versioned datasets, historical-universe membership, false-discovery controls, nested walk-forward evaluation, strategy-correlation analysis, and reproducible experiment comparison. Live execution should remain disabled.
