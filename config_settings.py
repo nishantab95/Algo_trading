@@ -18,7 +18,7 @@ BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = BASE_DIR
 
 # ── Your raw EOD CSV source — read-only, never written to by the bot
-RAW_DATA_DIR = r"D:\Markets\nifty"
+RAW_DATA_DIR = os.getenv("ALGO_RAW_SOURCE", r"D:\Markets\nifty")
 
 # ── Bot-managed processed CSVs (copies from RAW_DATA_DIR + yfinance downloads)
 DATA_DIR          = os.path.join(BASE_DIR, "data", "raw")
@@ -53,7 +53,7 @@ DASHBOARD_PORT = 5000
 
 # ── Runtime mutable state
 ACTIVE_PORTFOLIO: list[dict]      = []
-ZERODHA_CONNECTED                 = False
+ZERODHA_CONNECTED                 = False  # Stage 1: live remains disabled by default.
 API_KEY                           = ""
 API_SECRET                        = ""
 ACCESS_TOKEN                      = ""

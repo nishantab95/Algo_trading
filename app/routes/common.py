@@ -1,0 +1,15 @@
+from __future__ import annotations
+
+from flask import jsonify
+
+
+def success(data=None, message: str | None = None, status: int = 200):
+    # `ok` and named aliases preserve compatibility while the UI migrates to
+    # the mandatory Stage 1 success/data/error envelope.
+    payload = {"success": True, "ok": True, "data": data, "summary": data, "order": data, "session": data, "reports": data, "strategy": data}
+    if message: payload["message"] = message
+    return jsonify(payload), status
+
+
+def failure(error: Exception | str, status: int = 400):
+    return jsonify({"success": False, "ok": False, "error": str(error)}), status

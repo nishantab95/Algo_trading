@@ -314,8 +314,8 @@ class TradingStateMachine:
                 self.log("Live order placed on Kite", result)
                 return result
             except Exception as exc:
-                self.log("Live order FAILED — falling through to PAPER", {"error": str(exc)})
-                # Intentional fallthrough to paper mode on API error
+                self.log("Live order FAILED — fail-closed; no paper fill created", {"error": str(exc)})
+                raise RuntimeError(f"Live order failed: {exc}") from exc
 
         # ── PAPER path ────────────────────────
         if payload["transaction_type"] == "BUY":
@@ -549,7 +549,9 @@ def run_daily_pipeline(
         close_price = float(latest["Close"])
 
         # ATR-based position sizing
-        atr_value = float(latest.get("ATR", 0)) if "ATR" in latest.index else None
+        atr_value = float(latest.get("ATR_14", 0)) if "ATR_14" in latest.index else None
+        if not atr_value or atr_value <= 0:
+            TRADING_ENGINE.log("ATR_14 missing; using equal-slot fallback sizing", {"ticker": ticker})
         qty = TRADING_ENGINE._atr_position_size(ticker, close_price, atr_value)
 
         try:

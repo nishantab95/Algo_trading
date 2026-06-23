@@ -25,6 +25,20 @@ import preprocessing
 import report
 import strategy as strategy_selector
 
+from app import bootstrap_application
+from app.core.config import SETTINGS
+from app.core.logging_config import log_event
+from app.routes.broker_routes import create_broker_blueprint
+from app.routes.backtest_routes import create_backtest_blueprint
+from app.routes.dashboard_routes import create_dashboard_blueprint
+from app.routes.data_routes import create_data_blueprint
+from app.routes.paper_routes import create_paper_blueprint
+from app.routes.strategy_routes import create_strategy_blueprint
+from app.services.data_service import DataService
+from app.services.backtest_service import BacktestService
+from app.services.paper_trading_service import PaperTradingService
+from app.services.report_service import ReportService
+
 PIPELINE_LOCK = threading.Lock()
 
 STRATEGY_META = {
@@ -127,6 +141,7 @@ def _state_payload() -> dict:
         "account": bot.account_state(),
         "strategies": _strategy_cards(),
         "universe_size": len(cfg.get_full_ticker_universe()),
+        "ticker_universe": cfg.get_full_ticker_universe(),
         "custom_strategies": cfg.CUSTOM_STRATEGIES,
         "reports": reports,
     }
@@ -157,7 +172,7 @@ def _run_full_recalibration() -> None:
         APP_STATE["pipeline_busy"] = False
 
 
-def create_flask_app():
+def _create_legacy_flask_app():
     try:
         from flask import Flask, jsonify, render_template, request
     except ImportError:
@@ -258,12 +273,133 @@ def create_flask_app():
     return app
 
 
+# Stage 1 application services are initialized once and backed by SQLite.
+_FOUNDATION = bootstrap_application()
+_DATABASE = _FOUNDATION["database"]
+_STRATEGY_SERVICE = _FOUNDATION["strategies"]
+_DATA_SERVICE = DataService()
+_REPORT_SERVICE = ReportService(_DATABASE)
+_PAPER_SERVICE = PaperTradingService(bot.TRADING_ENGINE._latest_price_from_csv, _DATABASE)
+_BACKTEST_SERVICE = BacktestService(_DATABASE)
+
+
+def _stage1_state_payload() -> dict:
+    load_cached_report()
+    paper = _PAPER_SERVICE.snapshot()
+    account = paper["account"]
+    strategies = _STRATEGY_SERVICE.list_all()
+    custom_items = _STRATEGY_SERVICE.custom.list()
+    position_rows = [
+        {**row, "ticker": row["symbol"], "average_price": row["avg_price"],
+         "highest_price_seen": row["highest_price"], "stop_loss_price": round(row["avg_price"] * 0.95, 2),
+         "take_profit_price": round(row["avg_price"] * 1.15, 2), "trailing_stop_pct": 0.07,
+         "invested_value": round(row["quantity"] * row["avg_price"], 2),
+         "current_value": round(row["quantity"] * row["last_price"], 2),
+         "unrealized_pnl_pct": round((row["last_price"] / row["avg_price"] - 1) * 100, 2) if row["avg_price"] else 0}
+        for row in paper["positions"]
+    ]
+    return {
+        **APP_STATE,
+        "mode": "PAPER",
+        "live_trading_enabled": SETTINGS.live_trading_enabled,
+        "kill_switch": SETTINGS.kill_switch,
+        "risk_status": "HALTED" if SETTINGS.kill_switch else "PROTECTED",
+        "data_freshness": _DATA_SERVICE.freshness(),
+        "reports_stale": _DATA_SERVICE.reports_stale(),
+        "account": {
+            "mode": "PAPER", "connected": False, "market_open": bot.is_market_open(),
+            "initial_capital": account["starting_capital"], "cash_balance": account["cash"],
+            "portfolio_value": account["total_equity"], "active_positions": len(paper["positions"]),
+            "unrealized_pnl": account["unrealized_pnl"], "realized_pnl": account["realized_pnl"],
+            "positions": position_rows, "orders": paper["orders"], "trades": paper["trades"],
+            "logs": [],
+        },
+        "strategies": [
+            {"name": row["strategy_id"], "label": row["name"].replace("_", " "),
+             "description": row["description"], "enabled": row["enabled"], "custom": False,
+             "category": row["category"], "direction": row["direction"], "timeframe": row["timeframe"],
+             "status": row["status"]}
+            for row in strategies
+        ] + [
+            {"name": row["strategy_id"], "label": row["name"].replace("_", " "),
+             "description": row["description"] or row["expression"], "enabled": row["enabled"], "custom": True,
+             "category": "custom", "direction": "rule", "timeframe": "1d", "status": row["validation_status"]}
+            for row in custom_items
+        ],
+        "custom_strategies": custom_items,
+        "universe_size": len(cfg.get_full_ticker_universe()),
+        "paths": {"data_dir": cfg.DATA_DIR, "reports_dir": cfg.REPORTS_DIR, "consolidated_file": cfg.CONSOLIDATED_FILE},
+        "zerodha": {"connected": False, "mode": "DISABLED", "api_key": ""},
+        "reports": _reports_payload(),
+    }
+
+
+def _run_stage1_paper_scan() -> dict:
+    report_frame = strategy_selector.load_performance_report()
+    enabled = {row["strategy_id"] for row in _STRATEGY_SERVICE.list_all() if row["enabled"]}
+    enabled.update(row["strategy_id"] for row in _STRATEGY_SERVICE.custom.list() if row["enabled"] and row["validation_status"] == "valid")
+    eligible = report_frame[report_frame["Strategy"].isin(enabled)]
+    if eligible.empty:
+        raise RuntimeError("No enabled strategy has a current performance report.")
+    winning = str(strategy_selector.score_strategies(eligible, apply_runtime_filter=False).iloc[0]["Strategy"])
+    exits = _PAPER_SERVICE.exit_sweep()
+    checked = candidates = placed = 0
+    warnings: list[str] = []
+    for ticker in cfg.get_full_ticker_universe()[:60]:
+        if len(_PAPER_SERVICE.positions()) >= cfg.MAX_PORTFOLIO_POSITIONS:
+            break
+        latest = bot._load_latest_bar(ticker)
+        if latest is None:
+            continue
+        checked += 1
+        if int(latest.get(winning, 0)) != 1:
+            continue
+        candidates += 1
+        price = float(latest["Close"])
+        atr = latest.get("ATR_14")
+        if atr is None or pd.isna(atr) or float(atr) <= 0:
+            warnings.append(f"{ticker}: ATR_14 unavailable; equal-slot sizing used")
+            qty = max(int((_PAPER_SERVICE.account()["cash"] / cfg.MAX_PORTFOLIO_POSITIONS) / price), 1)
+        else:
+            risk_amount = _PAPER_SERVICE.account()["cash"] * cfg.PER_TRADE_RISK_PCT
+            qty = max(int(risk_amount / (float(atr) * 2.0)), 1)
+        try:
+            _PAPER_SERVICE.place_order(ticker, "BUY", qty, strategy_id=winning)
+            placed += 1
+        except Exception as exc:
+            warnings.append(f"{ticker}: {exc}")
+    APP_STATE.update({"last_run": _now(), "status": "Ready", "winning_strategy": winning})
+    return {"winning_strategy": winning, "signals_checked": checked, "buy_candidates": candidates,
+            "orders_placed": placed, **exits, "warnings": warnings, "mode": "PAPER"}
+
+
+# This later definition intentionally replaces the prototype route assembly above.
+def create_flask_app():
+    from flask import Flask
+    app = Flask(__name__, template_folder=os.path.join(PROJECT_ROOT, "templates"), static_folder=os.path.join(PROJECT_ROOT, "static"))
+    app.register_blueprint(create_dashboard_blueprint(_stage1_state_payload))
+    app.register_blueprint(create_data_blueprint(_REPORT_SERVICE))
+    app.register_blueprint(create_strategy_blueprint(_STRATEGY_SERVICE))
+    app.register_blueprint(create_paper_blueprint(_PAPER_SERVICE, _run_stage1_paper_scan))
+    app.register_blueprint(create_broker_blueprint(_DATABASE))
+    app.register_blueprint(create_backtest_blueprint(_BACKTEST_SERVICE))
+
+    @app.get("/api/get_reports")
+    def get_reports():
+        from app.routes.common import success
+        return success(_reports_payload())
+
+    return app
+
+
 def main() -> None:
     cfg.ensure_directories()
-    data.download_all()
-    if not load_cached_report():
-        print("[MAIN] No cached report found; building reports from canonical data.")
-        _run_full_recalibration()
+    sync_result = data.download_all()
+    log_event("info", "main", "data_sync", "Raw data synchronization completed", sync_result)
+    if _DATA_SERVICE.reports_stale() or not load_cached_report():
+        print("[MAIN] Cached report missing or stale; building reports from canonical data.")
+        _REPORT_SERVICE.recalibrate()
+        load_cached_report()
 
     print("=" * 80)
     print("  INTERACTIVE ALGO TRADING TERMINAL")

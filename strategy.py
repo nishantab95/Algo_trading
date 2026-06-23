@@ -30,7 +30,7 @@ def _normalize(series: pd.Series, higher_is_better: bool = True) -> pd.Series:
     return normalized if higher_is_better else 1.0 - normalized
 
 
-def score_strategies(summary: pd.DataFrame) -> pd.DataFrame:
+def score_strategies(summary: pd.DataFrame, apply_runtime_filter: bool = True) -> pd.DataFrame:
     """
     Institutional-style weighted selector:
       profit quality 30%, risk-adjusted return 25%, coverage 20%,
@@ -41,7 +41,7 @@ def score_strategies(summary: pd.DataFrame) -> pd.DataFrame:
 
     ranked = summary.copy()
     enabled = set(cfg.enabled_strategy_columns())
-    if enabled and "Strategy" in ranked.columns:
+    if apply_runtime_filter and enabled and "Strategy" in ranked.columns:
         ranked = ranked[ranked["Strategy"].isin(enabled)].copy()
         if ranked.empty:
             ranked = summary.copy()

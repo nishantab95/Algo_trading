@@ -1,0 +1,29 @@
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Any
+
+from app.db.models import OrderRequest
+
+
+class BaseBroker(ABC):
+    mode = "UNKNOWN"
+
+    @abstractmethod
+    def get_quotes(self, symbols: list[str]) -> dict[str, float]: ...
+    @abstractmethod
+    def get_funds(self) -> dict[str, Any]: ...
+    @abstractmethod
+    def get_positions(self) -> list[dict]: ...
+    @abstractmethod
+    def get_holdings(self) -> list[dict]: ...
+    @abstractmethod
+    def place_order(self, order_request: OrderRequest) -> dict: ...
+    @abstractmethod
+    def cancel_order(self, order_id: str) -> dict: ...
+    @abstractmethod
+    def get_order_status(self, order_id: str) -> dict: ...
+    @abstractmethod
+    def reconcile(self) -> dict: ...
+    @abstractmethod
+    def health_check(self) -> dict: ...
