@@ -817,7 +817,7 @@ Current fills are deterministic and accepted quantities fill completely; `partia
 - Full Stage 1–5 suite: `179 passed`.
 - Additive migration versions: `1, 2, 3, 4, 5, 6, 7`.
 - CSV report generation: all eight required report files created successfully in an isolated verification directory.
-- Requirements: unchanged; Stage 5 uses the standard library and existing Flask/SQLite stack.
+- Requirements dependency set: unchanged; the file documents Stage 5's standard-library CSV/SQLite design and exact interpreter command.
 
 Final startup/UI/API results are documented in the delivery summary. Stage 5 is considered complete only with the paper terminal and all legacy workspaces serving successfully.
 

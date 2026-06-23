@@ -11,7 +11,7 @@ from app.assistant.schemas import AssistantReply
 from app.llm.errors import LLMError
 
 
-MUTATING_INTENTS={"update_profile":"update_profile","strategy_change":"apply_strategy_change","combo_change":"apply_combo_change","run_backtest":"run_backtest","dashboard_create":"save_dashboard_layout","dashboard_modify":"add_dashboard_widget","paper_order_draft":"place_paper_order","paper_exit_draft":"exit_paper_position","paper_strategy_review":"update_strategy_paper_status","build_screener":"save_screener","watchlist_update":"update_watchlist"}
+MUTATING_INTENTS={"update_profile":"update_profile","strategy_change":"apply_strategy_change","combo_change":"apply_combo_change","run_backtest":"run_backtest","dashboard_create":"save_dashboard_layout","dashboard_modify":"add_dashboard_widget","paper_order_draft":"place_paper_order","paper_exit_draft":"exit_paper_position","paper_strategy_review":"update_strategy_paper_status","research_experiment_draft":"save_research_experiment","research_decision_draft":"approve_research_decision","build_screener":"save_screener","watchlist_update":"update_watchlist"}
 
 class AssistantService:
     def __init__(self,database,llm,rag,tools,drafts,profile,trade_history): self.database=database; self.llm=llm; self.rag=rag; self.tools=tools; self.drafts=drafts; self.profile=profile; self.trade_history=trade_history

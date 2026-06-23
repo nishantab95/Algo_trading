@@ -314,4 +314,77 @@ MIGRATIONS: list[tuple[int, str]] = [
     CREATE INDEX IF NOT EXISTS idx_paper_snapshots_time ON paper_account_snapshots(account_id,snapshot_time);
     CREATE INDEX IF NOT EXISTS idx_paper_order_events_order ON paper_order_events(order_id,created_at);
     """),
+    (8, """
+    CREATE TABLE IF NOT EXISTS research_experiments (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+        strategy_id TEXT, combo_id TEXT, universe TEXT NOT NULL, symbols_json TEXT NOT NULL,
+        start_date TEXT, end_date TEXT, train_start TEXT, train_end TEXT, test_start TEXT, test_end TEXT,
+        execution_model TEXT NOT NULL, cost_model TEXT NOT NULL, slippage_bps REAL NOT NULL,
+        spread_bps REAL NOT NULL, fees_enabled INTEGER NOT NULL, initial_capital REAL NOT NULL,
+        max_positions INTEGER NOT NULL, sizing_model TEXT NOT NULL, risk_settings_json TEXT NOT NULL,
+        parameter_grid_json TEXT NOT NULL, validation_config_json TEXT NOT NULL, status TEXT NOT NULL,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS research_data_manifests (
+        id TEXT PRIMARY KEY, experiment_id TEXT NOT NULL, data_source TEXT NOT NULL,
+        symbols_json TEXT NOT NULL, symbol_count INTEGER NOT NULL, date_start TEXT, date_end TEXT,
+        rows_per_symbol_json TEXT NOT NULL, missing_dates_json TEXT NOT NULL,
+        skipped_symbols_json TEXT NOT NULL, stale_symbols_json TEXT NOT NULL, data_hash TEXT NOT NULL,
+        code_version TEXT NOT NULL, config_hash TEXT NOT NULL, warnings_json TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL, FOREIGN KEY(experiment_id) REFERENCES research_experiments(id)
+    );
+    CREATE TABLE IF NOT EXISTS walk_forward_folds (
+        id TEXT PRIMARY KEY, experiment_id TEXT NOT NULL, fold_number INTEGER NOT NULL,
+        train_start TEXT NOT NULL, train_end TEXT NOT NULL, test_start TEXT NOT NULL, test_end TEXT NOT NULL,
+        selected_parameters_json TEXT NOT NULL, train_metrics_json TEXT NOT NULL, test_metrics_json TEXT NOT NULL,
+        trades_count INTEGER NOT NULL, test_return_pct REAL NOT NULL, test_sharpe REAL NOT NULL,
+        test_sortino REAL NOT NULL, test_max_drawdown REAL NOT NULL, test_profit_factor REAL NOT NULL,
+        test_expectancy REAL NOT NULL, test_win_rate REAL NOT NULL, test_costs REAL NOT NULL,
+        status TEXT NOT NULL, warnings_json TEXT NOT NULL, created_at TEXT NOT NULL,
+        FOREIGN KEY(experiment_id) REFERENCES research_experiments(id), UNIQUE(experiment_id,fold_number)
+    );
+    CREATE TABLE IF NOT EXISTS parameter_sweep_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, experiment_id TEXT NOT NULL, parameter_set_id TEXT NOT NULL,
+        parameters_json TEXT NOT NULL, full_metrics_json TEXT NOT NULL, train_metrics_json TEXT NOT NULL,
+        test_metrics_json TEXT NOT NULL, walk_forward_metrics_json TEXT NOT NULL, rank INTEGER NOT NULL,
+        stability_score REAL NOT NULL, overfit_warning TEXT, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS robustness_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, experiment_id TEXT NOT NULL, scenario_name TEXT NOT NULL,
+        config_json TEXT NOT NULL, metrics_json TEXT NOT NULL, return_pct REAL NOT NULL,
+        max_drawdown REAL NOT NULL, profit_factor REAL NOT NULL, expectancy REAL NOT NULL,
+        trades_count INTEGER NOT NULL, pass_fail TEXT NOT NULL, warnings_json TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS regime_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, experiment_id TEXT NOT NULL, regime_name TEXT NOT NULL,
+        date_start TEXT, date_end TEXT, trades_count INTEGER NOT NULL, return_pct REAL NOT NULL,
+        win_rate REAL NOT NULL, profit_factor REAL NOT NULL, expectancy REAL NOT NULL,
+        max_drawdown REAL NOT NULL, warnings_json TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS symbol_analysis_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, experiment_id TEXT NOT NULL, symbol TEXT NOT NULL,
+        trades_count INTEGER NOT NULL, net_pnl REAL NOT NULL, return_pct REAL NOT NULL,
+        win_rate REAL NOT NULL, profit_factor REAL NOT NULL, expectancy REAL NOT NULL,
+        max_drawdown REAL NOT NULL, contribution_pct REAL NOT NULL, warnings_json TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS strategy_correlation_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, strategy_a TEXT NOT NULL, strategy_b TEXT NOT NULL,
+        signal_correlation REAL NOT NULL, equity_correlation REAL NOT NULL, trade_overlap_pct REAL NOT NULL,
+        drawdown_overlap_pct REAL NOT NULL, redundancy_score REAL NOT NULL, recommendation TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS research_decisions (
+        id TEXT PRIMARY KEY, experiment_id TEXT NOT NULL, strategy_id TEXT, combo_id TEXT,
+        decision TEXT NOT NULL, evidence_score REAL NOT NULL, decision_reason TEXT NOT NULL,
+        warnings_json TEXT NOT NULL, approved_by_user INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'pending', approved_at TEXT, rejected_at TEXT, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS research_validation_summaries (
+        experiment_id TEXT PRIMARY KEY, summary_json TEXT NOT NULL, evidence_score REAL NOT NULL,
+        recommendation TEXT NOT NULL, warnings_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_research_experiments_created ON research_experiments(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_walk_forward_experiment ON walk_forward_folds(experiment_id,fold_number);
+    CREATE INDEX IF NOT EXISTS idx_robustness_experiment ON robustness_results(experiment_id,scenario_name);
+    """),
 ]

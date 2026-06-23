@@ -34,6 +34,12 @@ TABLE_SOURCES = {
     "paper_trade_journal": ("paper_journal", "id", "symbol", ("strategy_id", "net_pnl", "exit_reason", "mistake_tags_json", "notes")),
     "paper_account_snapshots": ("paper_snapshot", "id", "snapshot_time", ("total_equity", "daily_pnl", "drawdown_pct")),
     "paper_strategy_reviews": ("paper_review", "id", "strategy_id", ("promotion_status", "warnings_json")),
+    "research_experiments": ("research_experiment", "id", "name", ("strategy_id", "description", "validation_config_json", "status")),
+    "research_data_manifests": ("research_manifest", "id", "experiment_id", ("data_source", "data_hash", "warnings_json")),
+    "walk_forward_folds": ("walk_forward", "id", "experiment_id", ("fold_number", "test_metrics_json", "status", "warnings_json")),
+    "parameter_sweep_results": ("parameter_sweep", "id", "experiment_id", ("parameters_json", "stability_score", "overfit_warning")),
+    "robustness_results": ("robustness", "id", "scenario_name", ("metrics_json", "pass_fail", "warnings_json")),
+    "research_decisions": ("research_decision", "id", "experiment_id", ("decision", "evidence_score", "decision_reason")),
 }
 
 

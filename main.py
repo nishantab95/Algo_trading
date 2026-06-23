@@ -41,6 +41,7 @@ from app.routes.dashboard_routes import create_dashboard_blueprint
 from app.routes.data_routes import create_data_blueprint
 from app.routes.paper_routes import create_paper_blueprint
 from app.routes.paper_trading_routes import create_stage5_paper_blueprint
+from app.routes.research_lab_routes import create_research_lab_blueprint
 from app.routes.strategy_routes import create_strategy_blueprint
 from app.services.data_service import DataService
 from app.services.backtest_service import BacktestService
@@ -65,6 +66,9 @@ from app.paper.broker import PaperOperationsBroker
 from app.paper.analytics import PaperAnalytics
 from app.paper.reports import PaperReportService
 from app.services.paper_portfolio_service import PaperPortfolioService
+from app.research_lab.experiment import ResearchExperimentService,ResearchDecisionService
+from app.research_lab.experiment_runner import ResearchExperimentRunner
+from app.research_lab.exports import ResearchExportService
 
 PIPELINE_LOCK = threading.Lock()
 
@@ -322,10 +326,14 @@ _PAPER_OPERATIONS = PaperOperationsBroker(_DATABASE, bot.TRADING_ENGINE._latest_
 _PAPER_ANALYTICS = PaperAnalytics(_PAPER_OPERATIONS)
 _PAPER_PORTFOLIO = PaperPortfolioService(_PAPER_OPERATIONS)
 _PAPER_REPORTS = PaperReportService(_PAPER_OPERATIONS,_PAPER_ANALYTICS,PROJECT_ROOT)
+_RESEARCH_EXPERIMENTS = ResearchExperimentService(_DATABASE)
+_RESEARCH_DECISIONS = ResearchDecisionService(_DATABASE)
+_RESEARCH_RUNNER = ResearchExperimentRunner(_DATABASE,_RESEARCH_EXPERIMENTS,_BACKTEST_SERVICE)
+_RESEARCH_EXPORTS = ResearchExportService(_DATABASE,PROJECT_ROOT)
 _TOOL_REGISTRY = ToolRegistry()
 _READONLY_TOOLS = ReadOnlyTools(_DATABASE, _PROFILE_SERVICE, _DASHBOARD_SERVICE, _APP_SEARCH_SERVICE, _RAG_RETRIEVER,
                                 _STRATEGY_LIBRARY, _COMBO_SERVICE, _BACKTEST_SERVICE, _PAPER_SERVICE,
-                                _TRADE_HISTORY_SERVICE, lambda: _stage1_state_payload(),_PAPER_OPERATIONS,_PAPER_ANALYTICS)
+                                _TRADE_HISTORY_SERVICE, lambda: _stage1_state_payload(),_PAPER_OPERATIONS,_PAPER_ANALYTICS,_RESEARCH_EXPERIMENTS)
 
 
 def _run_approved_backtest(payload): return _BACKTEST_SERVICE.run(BacktestConfig(**payload)).summary()
@@ -380,6 +388,9 @@ _DRAFT_SERVICE = ActionDraftService(_DATABASE, {
     "edit_paper_journal": lambda p: _PAPER_OPERATIONS.update_journal(p["trade_id"],p.get("changes",{})),
     "update_paper_risk_setting": lambda p: _PAPER_OPERATIONS.update_risk_settings(p.get("changes",p)),
     "update_strategy_paper_status": lambda p: _PAPER_ANALYTICS.promotion_review(p["strategy_id"],p.get("criteria"),True),
+    "save_research_experiment": lambda p: _RESEARCH_EXPERIMENTS.create(p),
+    "approve_research_decision": lambda p: _RESEARCH_DECISIONS.approve(p["decision_id"],"user"),
+    "reject_research_decision": lambda p: _RESEARCH_DECISIONS.reject(p["decision_id"],"user"),
 })
 _TOOL_EXECUTOR = ToolExecutor(_TOOL_REGISTRY,_READONLY_TOOLS,_DRAFT_SERVICE)
 _ASSISTANT_SERVICE = AssistantService(_DATABASE,LMStudioClient(),_RAG_RETRIEVER,_TOOL_EXECUTOR,_DRAFT_SERVICE,_PROFILE_SERVICE,_TRADE_HISTORY_SERVICE)
@@ -481,6 +492,7 @@ def create_flask_app():
     app = Flask(__name__, template_folder=os.path.join(PROJECT_ROOT, "templates"), static_folder=os.path.join(PROJECT_ROOT, "static"))
     app.register_blueprint(create_dashboard_blueprint(_stage1_state_payload))
     app.register_blueprint(create_stage5_paper_blueprint(_PAPER_OPERATIONS,_PAPER_PORTFOLIO,_PAPER_ANALYTICS,_PAPER_REPORTS))
+    app.register_blueprint(create_research_lab_blueprint(_RESEARCH_EXPERIMENTS,_RESEARCH_RUNNER,_RESEARCH_DECISIONS,_RESEARCH_EXPORTS,_DATABASE))
     app.register_blueprint(create_data_blueprint(_REPORT_SERVICE))
     app.register_blueprint(create_strategy_blueprint(_STRATEGY_SERVICE))
     app.register_blueprint(create_paper_blueprint(_PAPER_SERVICE, _run_stage1_paper_scan))

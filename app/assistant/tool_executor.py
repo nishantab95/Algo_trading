@@ -16,6 +16,8 @@ DRAFT_ACTIONS={
     "draft_paper_order":"place_paper_order",
     "draft_exit_order":"exit_paper_position",
     "draft_strategy_paper_review":"update_strategy_paper_status",
+    "draft_research_experiment":"save_research_experiment",
+    "draft_research_decision":"approve_research_decision",
     "draft_risk_setting_change":"update_risk_setting",
 }
 
