@@ -51,7 +51,7 @@ def calculate_metrics(trades: list[Trade], equity_curve: list[dict], initial_cap
         "total_trades": len(trades), "winning_trades": int(wins.size), "losing_trades": int(losses.size),
         "win_rate": wins.size / len(trades) * 100 if trades else 0.0, "average_win": avg_win, "average_loss": avg_loss,
         "payoff_ratio": avg_win / abs(avg_loss) if avg_loss else 0.0, "expectancy": float(pnls.mean()) if pnls.size else 0.0,
-        "gross_profit": gross_profit, "gross_loss": gross_loss, "profit_factor": gross_profit / gross_loss if gross_loss else gross_profit,
+        "gross_profit": gross_profit, "gross_loss": gross_loss, "profit_factor": gross_profit / gross_loss if gross_loss else (None if gross_profit else 0.0),
         "net_profit": net_profit, "net_return_pct": net_return, "cagr": cagr, "max_drawdown_pct": max_dd,
         "drawdown_duration_bars": dd_duration, "sharpe": _safe(sharpe), "sortino": _safe(sortino),
         "calmar": cagr / max_dd if max_dd else 0.0, "exposure_pct": np.mean(exposure_observations) * 100 if exposure_observations else 0.0,
@@ -83,6 +83,7 @@ def metric_breakdown(metrics: dict[str, Any]) -> list[dict[str, Any]]:
         value = metrics.get(name)
         if name == "total_trades": status = "green" if value >= 30 else "amber" if value >= 10 else "red"
         elif name == "max_drawdown_pct": status = "green" if value <= 15 else "amber" if value <= 30 else "red"
+        elif name == "profit_factor" and value is None: status = "amber"
         elif name in {"sharpe", "sortino", "profit_factor", "expectancy", "net_return_pct"}: status = "green" if value > 1 else "amber" if value > 0 else "red"
         else: status = "amber" if value and value > 2 else "green"
         rows.append({"metric_name": name, "metric_value": value, "metric_status": status, "explanation": explanation})

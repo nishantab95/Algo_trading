@@ -595,13 +595,13 @@ The next priority should not be adding more strategies. It should be experiment 
 
 ### 18.11 Verification status
 
-The repository includes 50 named Stage 3 pytest functions in addition to 11 Stage 1 and 28 Stage 2 test functions. They cover catalog sizes, metadata, uniqueness, validation statuses, primitives and logic operators, synthetic base/combo signals, explanation content, API behavior, Stage 2 routing, SQLite persistence, disabled-state handling, and invalid primitive rejection.
+The repository includes 51 named Stage 3 pytest functions in addition to 14 Stage 1 and 30 Stage 2 test functions. They cover catalog sizes, metadata, uniqueness, validation statuses, primitives and logic operators, synthetic base/combo signals, explanation content, API behavior, Stage 2 routing, SQLite persistence, disabled-state handling, export completeness, and safety-route behavior.
 
 During this report update, static patch checks passed and the source catalog was counted at 230 requested base names plus three options simulation definitions and 120 combo names. Runtime pytest and browser verification could not be executed in the current environment because the Windows Python launcher reports that no Python runtime is installed. These tests must be run after installing Python before Stage 3 is treated as acceptance-tested.
 
 ## Stage 3 Completion and Verification
 
-**Verification time:** 2026-06-23 18:20:17 +05:30
+**Verification time:** 2026-06-23 18:31:53 +05:30
 **Final status:** PARTIAL
 
 ### Environment and commands
@@ -609,14 +609,14 @@ During this report update, static patch checks passed and the source catalog was
 | Check | Result |
 |---|---|
 | `python --version` | FAIL — PowerShell reports that `python` is not recognized. |
-| `py -3 --version` | FAIL — Windows launcher reports “No Installed Pythons Found”. |
-| `python -m pip --version` | FAIL before execution — Python unavailable. |
-| `python -m pip install -r requirements.txt` | FAIL before execution — Python unavailable. |
+| `py -0p` | FAIL — Windows launcher reports “No Installed Pythons Found”. |
+| `python -m pip list` | FAIL before execution — Python unavailable. |
 | `python -m pytest -q` | NOT RUN — Python unavailable. |
-| `python -m pytest tests/test_strategy_factory_stage3.py -q` | NOT RUN — Python unavailable. |
+| `python -m pytest tests -q` | NOT RUN — Python unavailable. |
 | Base catalog import/count command | NOT RUN — Python unavailable. |
 | Combo catalog import/count command | NOT RUN — Python unavailable. |
 | `python main.py` | NOT RUN — Python unavailable. |
+| Optional `scripts/init_db.py`, `scripts/run_tests.py`, `scripts/health_check.py` | NOT FOUND in this repository; database initialization is automatic through `Database.initialize()`. |
 | `git diff --check` | PASS; line-ending warnings only, no whitespace errors. |
 
 ### Acceptance evidence
@@ -627,14 +627,18 @@ During this report update, static patch checks passed and the source catalog was
 | UI smoke test | NEEDS MANUAL CHECK; no Flask server could be started, so dashboard, Library, Combo Builder, actions, and browser console were not acceptance-tested. |
 | Base strategy count | 233 by static source inspection: 230 named definitions plus 3 options simulations. Runtime import count is unverified. |
 | Combo strategy count | 120 by static source inspection. Runtime import count is unverified. |
-| Active strategy count | NOT VERIFIED; requires importing and initializing the catalog. |
-| Needs-data strategy count | NOT VERIFIED; requires importing and initializing the catalog. |
-| Needs-intraday strategy count | NOT VERIFIED; requires importing and initializing the catalog. |
-| Simulation-only strategy count | 3 visible definitions by static inspection; runtime database count is unverified. |
+| Active strategy count | 95 by source-generated classification; runtime database count is unverified. |
+| Needs-data strategy count | 130 by source-generated classification; runtime database count is unverified. |
+| Needs-intraday strategy count | 5 by source-generated classification; runtime database count is unverified. |
+| Simulation-only strategy count | 3 by source-generated classification; runtime database count is unverified. |
+| Disabled strategy count | 0 generated definitions; invalid runtime/custom definitions can still be disabled. |
+| Active combo count | 12 by catalog mapping; runtime database count is unverified. |
+| Needs-data combo count | 108 by catalog mapping; runtime database count is unverified. |
+| Invalid combo count | 0 generated definitions; invalid custom payloads are rejected. |
 | Stage 2 integration | Static PASS: base/combo routes feed `BacktestConfig` to the existing `BacktestService`; runtime integration remains unverified. |
 | Migration status | Static PASS: migrations 1–3 are additive and use `CREATE TABLE IF NOT EXISTS`; runtime application remains unverified. |
 | API verification | Static PASS for all 15 required Stage 3 route declarations; runtime Flask responses remain unverified. |
-| Test inventory | 11 Stage 1, 28 Stage 2, and 50 Stage 3 named test functions; execution is unverified. |
+| Test inventory | 14 Stage 1, 30 Stage 2, and 51 Stage 3 named test functions; execution is unverified. |
 
 ### Bugs found and fixed
 
@@ -645,6 +649,10 @@ During this report update, static patch checks passed and the source catalog was
 5. A caller-supplied duplicate combo ID could overwrite an existing definition. POST/create now rejects it while PUT/update remains explicit.
 6. Stage 3 had only 36 documented tests. It now contains 50 named tests, including the missing API, metadata, explanation, duplicate-ID, visibility, loader, and full primitive-contract checks.
 7. Combo Builder had no dedicated stylesheet. Added one and linked it in the document head.
+8. Shared Stage 1 API responses omitted mandatory `warnings` or `details`. Standardized the envelope while retaining UI compatibility aliases.
+9. Reset, exit-only sweep, recalibration, and report-export wiring lacked behavioral tests. Added targeted tests.
+10. Combo `not` logic was missing from the engine, validator, and UI. Added a single-component negation contract and regression test.
+11. All-winning samples used gross currency profit as a profit-factor ratio. Profit factor is now explicitly undefined when there are wins but no losses, with safe robustness and UI handling.
 
 ### Remaining issues
 
@@ -657,8 +665,8 @@ During this report update, static patch checks passed and the source catalog was
 
 | Stage | Area | Status | Evidence | Remaining Work |
 |---|---|---|---|---|
-| Stage 1 | Foundation/Persistence/Safety/UI | PARTIAL | Migration 1, durable paper broker, fail-closed live adapter, Stage 1 routes, and 11 tests are present. | Execute tests, startup, and dashboard smoke check. |
-| Stage 2 | Backtesting Engine | PARTIAL | One completed-trade engine, migration 2, reports/APIs/UI, and 28 tests are present. | Execute lifecycle/integration tests and Backtesting Lab smoke check. |
-| Stage 3 | Strategy Library/Combos | PARTIAL | 233/120 static catalog counts, migration 3, 15 API routes, integrated UI, and 50 tests are present. | Execute tests/imports/migrations/APIs/UI and record runtime status counts. |
+| Stage 1 | Foundation/Persistence/Safety/UI | PARTIAL | Migration 1, durable paper broker, fail-closed live adapter, Stage 1 routes, and 14 tests are present. | Execute tests, startup, and dashboard smoke check. |
+| Stage 2 | Backtesting Engine | PARTIAL | One completed-trade engine, migration 2, reports/APIs/UI, and 30 tests are present. | Execute lifecycle/integration tests and Backtesting Lab smoke check. |
+| Stage 3 | Strategy Library/Combos | PARTIAL | 233/120 static catalog counts, migration 3, 15 API routes, integrated UI, and 51 tests are present. | Execute tests/imports/migrations/APIs/UI and confirm database counts. |
 
 **Do not proceed to Stage 4 yet.**

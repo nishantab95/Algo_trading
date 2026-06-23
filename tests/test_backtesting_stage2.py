@@ -124,6 +124,11 @@ def test_no_trade_backtest_does_not_crash(): assert BacktestEngine(config()).run
 def test_all_loss_backtest_does_not_crash(): assert BacktestEngine(config()).run(bars(lows=[99,90,99,99,99])).metrics["profit_factor"]==0
 
 
+def test_all_winner_profit_factor_is_explicitly_undefined():
+    result=BacktestEngine(config()).run(bars(highs=[101,120,101,101,101]))
+    assert result.metrics["winning_trades"]==1 and result.metrics["profit_factor"] is None
+
+
 def test_benchmark_missing_fallback():
     metrics,warnings=apply_benchmark([],bars(),"MISSING",100_000); assert metrics=={} and warnings
 

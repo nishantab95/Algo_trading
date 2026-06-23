@@ -163,6 +163,8 @@ python -m pytest tests/test_strategy_factory_stage3.py -q
 
 Tests cover schema initialization, persistence, reset, ATR sizing, registry loading, custom rules, duplicate risk, broker fail-closed behavior, API envelopes, and corrected UI actions.
 
+The standardized API contract always includes `success`, `data`, and `warnings` on success, or `success`, `error`, and `details` on failure. Compatibility aliases remain temporarily available for the original dashboard JavaScript.
+
 Stage 2 and Stage 3 suites additionally cover execution timing, completed-trade lifecycle, costs, sizing, metrics, 230+ strategy definitions, 120 combos, primitive truth tables, validation, explanations, persistence, and Stage 2 routing.
 
 Verify the config-driven catalog counts without starting Flask:
@@ -173,6 +175,8 @@ python -c "from app.strategies.combos.combo_registry import load_combo_strategy_
 ```
 
 The repository currently contains 233 base definitions (230 named equity/portfolio research definitions plus three options simulations) and 120 combo definitions by static source inspection. These counts must also be confirmed by the commands above in the installed project environment.
+
+Current source-generated status breakdown: 95 active, 130 needs-data, 5 needs-intraday-data, and 3 simulation-only base definitions; 12 active and 108 needs-data combos. Runtime SQLite registry counts remain acceptance items until Python is installed and initialization succeeds.
 
 ## Live-trading warning
 

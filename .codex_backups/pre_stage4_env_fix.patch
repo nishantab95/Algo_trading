@@ -1,0 +1,189 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 00e480c..83bcd64 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -23,7 +23,12 @@
+ - Added stable catalog loader functions used by acceptance count commands.
+ - Expanded explanations with symbol, signal time, passed filters, risk/exit context, and freshness warnings.
+ - Added primitive parameter/future-use checks and application-level duplicate combo-ID rejection.
+-- Expanded Stage 3 coverage from 36 to 50 named pytest functions and added dedicated Combo Builder styling.
++- Expanded Stage 3 coverage from 36 to 51 named pytest functions and added dedicated Combo Builder styling.
++- Standardized Stage 1 success/failure envelopes with mandatory warnings/details fields.
++- Added behavior tests proving reset and exit-only sweep cannot invoke the scan callback, plus recalibration routing and the complete Stage 2 export bundle.
++- Added `not` support consistently across the combo engine, validator, UI, and tests.
++- Corrected all-winner profit factor handling: it is now explicitly undefined instead of incorrectly reported as a currency amount.
++- Current test inventory is 14 Stage 1, 30 Stage 2, and 51 Stage 3 named tests; execution still requires an installed Python runtime.
+ 
+ ### Remaining known issues
+ 
+diff --git a/README.md b/README.md
+index 6ec4328..1b4a979 100644
+--- a/README.md
++++ b/README.md
+@@ -163,6 +163,8 @@ python -m pytest tests/test_strategy_factory_stage3.py -q
+ 
+ Tests cover schema initialization, persistence, reset, ATR sizing, registry loading, custom rules, duplicate risk, broker fail-closed behavior, API envelopes, and corrected UI actions.
+ 
++The standardized API contract always includes `success`, `data`, and `warnings` on success, or `success`, `error`, and `details` on failure. Compatibility aliases remain temporarily available for the original dashboard JavaScript.
++
+ Stage 2 and Stage 3 suites additionally cover execution timing, completed-trade lifecycle, costs, sizing, metrics, 230+ strategy definitions, 120 combos, primitive truth tables, validation, explanations, persistence, and Stage 2 routing.
+ 
+ Verify the config-driven catalog counts without starting Flask:
+@@ -174,6 +176,8 @@ python -c "from app.strategies.combos.combo_registry import load_combo_strategy_
+ 
+ The repository currently contains 233 base definitions (230 named equity/portfolio research definitions plus three options simulations) and 120 combo definitions by static source inspection. These counts must also be confirmed by the commands above in the installed project environment.
+ 
++Current source-generated status breakdown: 95 active, 130 needs-data, 5 needs-intraday-data, and 3 simulation-only base definitions; 12 active and 108 needs-data combos. Runtime SQLite registry counts remain acceptance items until Python is installed and initialization succeeds.
++
+ ## Live-trading warning
+ 
+ Live trading is disabled by default and the Stage 1 broker route refuses activation. Do not enable `ALGO_LIVE_TRADING_ENABLED`. Broker reconciliation, durable live order lifecycle, partial fills, exchange calendars, comprehensive loss controls, authentication, and operational monitoring are still required.
+diff --git a/TECHNICAL_REPORT.md b/TECHNICAL_REPORT.md
+index 1ac1988..731a893 100644
+--- a/TECHNICAL_REPORT.md
++++ b/TECHNICAL_REPORT.md
+@@ -595,13 +595,13 @@ The next priority should not be adding more strategies. It should be experiment
+ 
+ ### 18.11 Verification status
+ 
+-The repository includes 50 named Stage 3 pytest functions in addition to 11 Stage 1 and 28 Stage 2 test functions. They cover catalog sizes, metadata, uniqueness, validation statuses, primitives and logic operators, synthetic base/combo signals, explanation content, API behavior, Stage 2 routing, SQLite persistence, disabled-state handling, and invalid primitive rejection.
++The repository includes 51 named Stage 3 pytest functions in addition to 14 Stage 1 and 30 Stage 2 test functions. They cover catalog sizes, metadata, uniqueness, validation statuses, primitives and logic operators, synthetic base/combo signals, explanation content, API behavior, Stage 2 routing, SQLite persistence, disabled-state handling, export completeness, and safety-route behavior.
+ 
+ During this report update, static patch checks passed and the source catalog was counted at 230 requested base names plus three options simulation definitions and 120 combo names. Runtime pytest and browser verification could not be executed in the current environment because the Windows Python launcher reports that no Python runtime is installed. These tests must be run after installing Python before Stage 3 is treated as acceptance-tested.
+ 
+ ## Stage 3 Completion and Verification
+ 
+-**Verification time:** 2026-06-23 18:20:17 +05:30
++**Verification time:** 2026-06-23 18:31:53 +05:30
+ **Final status:** PARTIAL
+ 
+ ### Environment and commands
+@@ -609,14 +609,14 @@ During this report update, static patch checks passed and the source catalog was
+ | Check | Result |
+ |---|---|
+ | `python --version` | FAIL — PowerShell reports that `python` is not recognized. |
+-| `py -3 --version` | FAIL — Windows launcher reports “No Installed Pythons Found”. |
+-| `python -m pip --version` | FAIL before execution — Python unavailable. |
+-| `python -m pip install -r requirements.txt` | FAIL before execution — Python unavailable. |
++| `py -0p` | FAIL — Windows launcher reports “No Installed Pythons Found”. |
++| `python -m pip list` | FAIL before execution — Python unavailable. |
+ | `python -m pytest -q` | NOT RUN — Python unavailable. |
+-| `python -m pytest tests/test_strategy_factory_stage3.py -q` | NOT RUN — Python unavailable. |
++| `python -m pytest tests -q` | NOT RUN — Python unavailable. |
+ | Base catalog import/count command | NOT RUN — Python unavailable. |
+ | Combo catalog import/count command | NOT RUN — Python unavailable. |
+ | `python main.py` | NOT RUN — Python unavailable. |
++| Optional `scripts/init_db.py`, `scripts/run_tests.py`, `scripts/health_check.py` | NOT FOUND in this repository; database initialization is automatic through `Database.initialize()`. |
+ | `git diff --check` | PASS; line-ending warnings only, no whitespace errors. |
+ 
+ ### Acceptance evidence
+@@ -627,14 +627,18 @@ During this report update, static patch checks passed and the source catalog was
+ | UI smoke test | NEEDS MANUAL CHECK; no Flask server could be started, so dashboard, Library, Combo Builder, actions, and browser console were not acceptance-tested. |
+ | Base strategy count | 233 by static source inspection: 230 named definitions plus 3 options simulations. Runtime import count is unverified. |
+ | Combo strategy count | 120 by static source inspection. Runtime import count is unverified. |
+-| Active strategy count | NOT VERIFIED; requires importing and initializing the catalog. |
+-| Needs-data strategy count | NOT VERIFIED; requires importing and initializing the catalog. |
+-| Needs-intraday strategy count | NOT VERIFIED; requires importing and initializing the catalog. |
+-| Simulation-only strategy count | 3 visible definitions by static inspection; runtime database count is unverified. |
++| Active strategy count | 95 by source-generated classification; runtime database count is unverified. |
++| Needs-data strategy count | 130 by source-generated classification; runtime database count is unverified. |
++| Needs-intraday strategy count | 5 by source-generated classification; runtime database count is unverified. |
++| Simulation-only strategy count | 3 by source-generated classification; runtime database count is unverified. |
++| Disabled strategy count | 0 generated definitions; invalid runtime/custom definitions can still be disabled. |
++| Active combo count | 12 by catalog mapping; runtime database count is unverified. |
++| Needs-data combo count | 108 by catalog mapping; runtime database count is unverified. |
++| Invalid combo count | 0 generated definitions; invalid custom payloads are rejected. |
+ | Stage 2 integration | Static PASS: base/combo routes feed `BacktestConfig` to the existing `BacktestService`; runtime integration remains unverified. |
+ | Migration status | Static PASS: migrations 1–3 are additive and use `CREATE TABLE IF NOT EXISTS`; runtime application remains unverified. |
+ | API verification | Static PASS for all 15 required Stage 3 route declarations; runtime Flask responses remain unverified. |
+-| Test inventory | 11 Stage 1, 28 Stage 2, and 50 Stage 3 named test functions; execution is unverified. |
++| Test inventory | 14 Stage 1, 30 Stage 2, and 51 Stage 3 named test functions; execution is unverified. |
+ 
+ ### Bugs found and fixed
+ 
+@@ -645,6 +649,10 @@ During this report update, static patch checks passed and the source catalog was
+ 5. A caller-supplied duplicate combo ID could overwrite an existing definition. POST/create now rejects it while PUT/update remains explicit.
+ 6. Stage 3 had only 36 documented tests. It now contains 50 named tests, including the missing API, metadata, explanation, duplicate-ID, visibility, loader, and full primitive-contract checks.
+ 7. Combo Builder had no dedicated stylesheet. Added one and linked it in the document head.
++8. Shared Stage 1 API responses omitted mandatory `warnings` or `details`. Standardized the envelope while retaining UI compatibility aliases.
++9. Reset, exit-only sweep, recalibration, and report-export wiring lacked behavioral tests. Added targeted tests.
++10. Combo `not` logic was missing from the engine, validator, and UI. Added a single-component negation contract and regression test.
++11. All-winning samples used gross currency profit as a profit-factor ratio. Profit factor is now explicitly undefined when there are wins but no losses, with safe robustness and UI handling.
+ 
+ ### Remaining issues
+ 
+@@ -657,8 +665,8 @@ During this report update, static patch checks passed and the source catalog was
+ 
+ | Stage | Area | Status | Evidence | Remaining Work |
+ |---|---|---|---|---|
+-| Stage 1 | Foundation/Persistence/Safety/UI | PARTIAL | Migration 1, durable paper broker, fail-closed live adapter, Stage 1 routes, and 11 tests are present. | Execute tests, startup, and dashboard smoke check. |
+-| Stage 2 | Backtesting Engine | PARTIAL | One completed-trade engine, migration 2, reports/APIs/UI, and 28 tests are present. | Execute lifecycle/integration tests and Backtesting Lab smoke check. |
+-| Stage 3 | Strategy Library/Combos | PARTIAL | 233/120 static catalog counts, migration 3, 15 API routes, integrated UI, and 50 tests are present. | Execute tests/imports/migrations/APIs/UI and record runtime status counts. |
++| Stage 1 | Foundation/Persistence/Safety/UI | PARTIAL | Migration 1, durable paper broker, fail-closed live adapter, Stage 1 routes, and 14 tests are present. | Execute tests, startup, and dashboard smoke check. |
++| Stage 2 | Backtesting Engine | PARTIAL | One completed-trade engine, migration 2, reports/APIs/UI, and 30 tests are present. | Execute lifecycle/integration tests and Backtesting Lab smoke check. |
++| Stage 3 | Strategy Library/Combos | PARTIAL | 233/120 static catalog counts, migration 3, 15 API routes, integrated UI, and 51 tests are present. | Execute tests/imports/migrations/APIs/UI and confirm database counts. |
+ 
+ **Do not proceed to Stage 4 yet.**
+diff --git a/app/backtesting/metrics.py b/app/backtesting/metrics.py
+index 0881537..b5e349f 100644
+--- a/app/backtesting/metrics.py
++++ b/app/backtesting/metrics.py
+@@ -51,7 +51,7 @@ def calculate_metrics(trades: list[Trade], equity_curve: list[dict], initial_cap
+         "total_trades": len(trades), "winning_trades": int(wins.size), "losing_trades": int(losses.size),
+         "win_rate": wins.size / len(trades) * 100 if trades else 0.0, "average_win": avg_win, "average_loss": avg_loss,
+         "payoff_ratio": avg_win / abs(avg_loss) if avg_loss else 0.0, "expectancy": float(pnls.mean()) if pnls.size else 0.0,
+-        "gross_profit": gross_profit, "gross_loss": gross_loss, "profit_factor": gross_profit / gross_loss if gross_loss else gross_profit,
++        "gross_profit": gross_profit, "gross_loss": gross_loss, "profit_factor": gross_profit / gross_loss if gross_loss else (None if gross_profit else 0.0),
+         "net_profit": net_profit, "net_return_pct": net_return, "cagr": cagr, "max_drawdown_pct": max_dd,
+         "drawdown_duration_bars": dd_duration, "sharpe": _safe(sharpe), "sortino": _safe(sortino),
+         "calmar": cagr / max_dd if max_dd else 0.0, "exposure_pct": np.mean(exposure_observations) * 100 if exposure_observations else 0.0,
+@@ -83,6 +83,7 @@ def metric_breakdown(metrics: dict[str, Any]) -> list[dict[str, Any]]:
+         value = metrics.get(name)
+         if name == "total_trades": status = "green" if value >= 30 else "amber" if value >= 10 else "red"
+         elif name == "max_drawdown_pct": status = "green" if value <= 15 else "amber" if value <= 30 else "red"
++        elif name == "profit_factor" and value is None: status = "amber"
+         elif name in {"sharpe", "sortino", "profit_factor", "expectancy", "net_return_pct"}: status = "green" if value > 1 else "amber" if value > 0 else "red"
+         else: status = "amber" if value and value > 2 else "green"
+         rows.append({"metric_name": name, "metric_value": value, "metric_status": status, "explanation": explanation})
+diff --git a/app/services/backtest_service.py b/app/services/backtest_service.py
+index de00a2f..07d7b34 100644
+--- a/app/services/backtest_service.py
++++ b/app/services/backtest_service.py
+@@ -113,7 +113,7 @@ class BacktestService:
+         if normal["net_profit"] > 0 and results["slippage_2x"]["metrics"]["net_profit"] <= 0: flags.append("Profit disappears at 2x slippage.")
+         if normal["total_trades"] < 30: flags.append("Completed-trade sample is below 30.")
+         if normal["max_drawdown_pct"] > 30: flags.append("Maximum drawdown exceeds 30%.")
+-        if normal["profit_factor"] < 1: flags.append("Profit factor is below 1.")
++        if normal["profit_factor"] is not None and normal["profit_factor"] < 1: flags.append("Profit factor is below 1.")
+         if normal["expectancy"] < 0: flags.append("Completed-trade expectancy is negative.")
+         if normal.get("benchmark_relative_return_pct") is not None and normal["benchmark_relative_return_pct"] < -10: flags.append("Benchmark outperforms strategy by more than 10 percentage points.")
+         if normal["gross_profit"] > 0 and normal["largest_win"] / normal["gross_profit"] > 0.30: flags.append("One trade contributes more than 30% of gross profit.")
+diff --git a/static/js/backtests.js b/static/js/backtests.js
+index 1e3ad5b..df0d20a 100644
+--- a/static/js/backtests.js
++++ b/static/js/backtests.js
+@@ -37,7 +37,7 @@ async function loadBacktests() {
+   }
+   try {
+     const payload = await btApi('/api/backtests'); const body = document.getElementById('bt-history'); const rows = payload.data || [];
+-    body.innerHTML = rows.length ? rows.map(row=>`<tr><td class="ticker">${esc(row.run_id.slice(0,8))}</td><td>${esc(row.strategy_name)}</td><td>${esc(row.start_date||'—')} → ${esc(row.end_date||'—')}</td><td class="num ${row.net_return_pct>=0?'up':'dn'}">${Number(row.net_return_pct).toFixed(2)}%</td><td class="num dn">${Number(row.max_drawdown_pct).toFixed(2)}%</td><td class="num">${Number(row.win_rate).toFixed(1)}%</td><td class="num">${Number(row.profit_factor).toFixed(2)}</td><td>${esc((row.created_at||'').slice(0,19))}</td><td><button class="btn btn-sm" onclick="viewBacktest('${esc(row.run_id)}')">View</button></td></tr>`).join('') : '<tr><td colspan="9" class="empty">No persisted backtest runs.</td></tr>';
++    body.innerHTML = rows.length ? rows.map(row=>`<tr><td class="ticker">${esc(row.run_id.slice(0,8))}</td><td>${esc(row.strategy_name)}</td><td>${esc(row.start_date||'—')} → ${esc(row.end_date||'—')}</td><td class="num ${row.net_return_pct>=0?'up':'dn'}">${Number(row.net_return_pct).toFixed(2)}%</td><td class="num dn">${Number(row.max_drawdown_pct).toFixed(2)}%</td><td class="num">${Number(row.win_rate).toFixed(1)}%</td><td class="num">${row.profit_factor==null?'—':Number(row.profit_factor).toFixed(2)}</td><td>${esc((row.created_at||'').slice(0,19))}</td><td><button class="btn btn-sm" onclick="viewBacktest('${esc(row.run_id)}')">View</button></td></tr>`).join('') : '<tr><td colspan="9" class="empty">No persisted backtest runs.</td></tr>';
+   } catch(error) { toast('Backtest history: '+error.message,'err'); }
+ }
+ 
+diff --git a/tests/test_backtesting_stage2.py b/tests/test_backtesting_stage2.py
+index 02413b8..1888cd9 100644
+--- a/tests/test_backtesting_stage2.py
++++ b/tests/test_backtesting_stage2.py
+@@ -124,6 +124,11 @@ def test_no_trade_backtest_does_not_crash(): assert BacktestEngine(config()).run
+ def test_all_loss_backtest_does_not_crash(): assert BacktestEngine(config()).run(bars(lows=[99,90,99,99,99])).metrics["profit_factor"]==0
+ 
+ 
++def test_all_winner_profit_factor_is_explicitly_undefined():
++    result=BacktestEngine(config()).run(bars(highs=[101,120,101,101,101]))
++    assert result.metrics["winning_trades"]==1 and result.metrics["profit_factor"] is None
++
++
+ def test_benchmark_missing_fallback():
+     metrics,warnings=apply_benchmark([],bars(),"MISSING",100_000); assert metrics=={} and warnings
+ 

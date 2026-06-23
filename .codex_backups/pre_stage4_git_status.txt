@@ -1,0 +1,7 @@
+ M CHANGELOG.md
+ M README.md
+ M TECHNICAL_REPORT.md
+ M app/backtesting/metrics.py
+ M app/services/backtest_service.py
+ M static/js/backtests.js
+ M tests/test_backtesting_stage2.py

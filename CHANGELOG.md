@@ -23,7 +23,12 @@
 - Added stable catalog loader functions used by acceptance count commands.
 - Expanded explanations with symbol, signal time, passed filters, risk/exit context, and freshness warnings.
 - Added primitive parameter/future-use checks and application-level duplicate combo-ID rejection.
-- Expanded Stage 3 coverage from 36 to 50 named pytest functions and added dedicated Combo Builder styling.
+- Expanded Stage 3 coverage from 36 to 51 named pytest functions and added dedicated Combo Builder styling.
+- Standardized Stage 1 success/failure envelopes with mandatory warnings/details fields.
+- Added behavior tests proving reset and exit-only sweep cannot invoke the scan callback, plus recalibration routing and the complete Stage 2 export bundle.
+- Added `not` support consistently across the combo engine, validator, UI, and tests.
+- Corrected all-winner profit factor handling: it is now explicitly undefined instead of incorrectly reported as a currency amount.
+- Current test inventory is 14 Stage 1, 30 Stage 2, and 51 Stage 3 named tests; execution still requires an installed Python runtime.
 
 ### Remaining known issues
 

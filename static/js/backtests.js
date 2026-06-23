@@ -37,7 +37,7 @@ async function loadBacktests() {
   }
   try {
     const payload = await btApi('/api/backtests'); const body = document.getElementById('bt-history'); const rows = payload.data || [];
-    body.innerHTML = rows.length ? rows.map(row=>`<tr><td class="ticker">${esc(row.run_id.slice(0,8))}</td><td>${esc(row.strategy_name)}</td><td>${esc(row.start_date||'—')} → ${esc(row.end_date||'—')}</td><td class="num ${row.net_return_pct>=0?'up':'dn'}">${Number(row.net_return_pct).toFixed(2)}%</td><td class="num dn">${Number(row.max_drawdown_pct).toFixed(2)}%</td><td class="num">${Number(row.win_rate).toFixed(1)}%</td><td class="num">${Number(row.profit_factor).toFixed(2)}</td><td>${esc((row.created_at||'').slice(0,19))}</td><td><button class="btn btn-sm" onclick="viewBacktest('${esc(row.run_id)}')">View</button></td></tr>`).join('') : '<tr><td colspan="9" class="empty">No persisted backtest runs.</td></tr>';
+    body.innerHTML = rows.length ? rows.map(row=>`<tr><td class="ticker">${esc(row.run_id.slice(0,8))}</td><td>${esc(row.strategy_name)}</td><td>${esc(row.start_date||'—')} → ${esc(row.end_date||'—')}</td><td class="num ${row.net_return_pct>=0?'up':'dn'}">${Number(row.net_return_pct).toFixed(2)}%</td><td class="num dn">${Number(row.max_drawdown_pct).toFixed(2)}%</td><td class="num">${Number(row.win_rate).toFixed(1)}%</td><td class="num">${row.profit_factor==null?'—':Number(row.profit_factor).toFixed(2)}</td><td>${esc((row.created_at||'').slice(0,19))}</td><td><button class="btn btn-sm" onclick="viewBacktest('${esc(row.run_id)}')">View</button></td></tr>`).join('') : '<tr><td colspan="9" class="empty">No persisted backtest runs.</td></tr>';
   } catch(error) { toast('Backtest history: '+error.message,'err'); }
 }
 

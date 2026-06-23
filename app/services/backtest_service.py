@@ -113,7 +113,7 @@ class BacktestService:
         if normal["net_profit"] > 0 and results["slippage_2x"]["metrics"]["net_profit"] <= 0: flags.append("Profit disappears at 2x slippage.")
         if normal["total_trades"] < 30: flags.append("Completed-trade sample is below 30.")
         if normal["max_drawdown_pct"] > 30: flags.append("Maximum drawdown exceeds 30%.")
-        if normal["profit_factor"] < 1: flags.append("Profit factor is below 1.")
+        if normal["profit_factor"] is not None and normal["profit_factor"] < 1: flags.append("Profit factor is below 1.")
         if normal["expectancy"] < 0: flags.append("Completed-trade expectancy is negative.")
         if normal.get("benchmark_relative_return_pct") is not None and normal["benchmark_relative_return_pct"] < -10: flags.append("Benchmark outperforms strategy by more than 10 percentage points.")
         if normal["gross_profit"] > 0 and normal["largest_win"] / normal["gross_profit"] > 0.30: flags.append("One trade contributes more than 30% of gross profit.")
