@@ -109,15 +109,42 @@ Validation checks metadata, primitive names, entry logic, required columns, time
 
 Many research candidates increase multiple-testing risk. A large library makes disciplined out-of-sample controls more important; it does not make historical results more trustworthy by itself.
 
-## Install
+## Stage 4 local assistant, RAG, search, profile, and dashboards
 
-Python 3.10+ is recommended.
+Stage 4 adds a local LM Studio assistant around the rule-based platform. The assistant is an explainer, search interface, drafting helper, dashboard helper, and profile assistant. It is **not** the trading engine. Strategy definitions remain the trading brain, Stage 2 remains the evidence engine, the risk manager remains the gatekeeper, and the user remains the final decision-maker.
+
+The assistant uses lightweight SQLite-backed keyword retrieval across documentation, strategies, combos, backtests, paper activity, risk events, logs, profiles, dashboards, and conversations. No embedding model, vector database, LangChain, or ML/DL prediction package is used.
+
+Configure LM Studio with environment variables before starting the app:
 
 ```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+$env:LLM_ENABLED = "true"
+$env:LLM_PROVIDER = "lmstudio"
+$env:LLM_BASE_URL = "http://localhost:1234/v1"
+$env:LLM_MODEL = "qwen3.5-9b"
+$env:LLM_TIMEOUT_SECONDS = "60"
+$env:LLM_ACTION_APPROVAL_REQUIRED = "true"
+$env:RAG_ENABLED = "true"
+$env:RAG_MODE = "sqlite_fts"
+```
+
+LM Studio may be offline: Flask still starts, local RAG/search remains available, and chat returns a clear offline response. Use **Search → Reindex** to rebuild local retrieval records. Use **Profile** and **Dashboards** to create preview drafts; approve or reject the exact draft before any database mutation executes.
+
+Assistant capabilities include searching RSI/EMA strategies, explaining backtests, showing paper/backtest trade history, reviewing risk events, drafting strategy/combo changes, drafting paper orders, updating the trading profile, and building allowlisted dashboards. It cannot place live orders, enable live trading, alter broker credentials, disable the risk manager, run arbitrary Python, approve its own actions, or bypass validation/backtesting.
+
+## Install
+
+Project venv Python path:
+
+```text
+C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe
+```
+
+Use only this interpreter. Do not create another project venv.
+
+```powershell
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip install --upgrade pip
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip install -r requirements.txt
 ```
 
 The raw source defaults to `D:\Markets\nifty`. Configure a portable source with:
@@ -129,7 +156,7 @@ $env:ALGO_RAW_SOURCE = "D:\your\ohlcv\folder"
 ## Run
 
 ```powershell
-python main.py
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" main.py
 ```
 
 Open `http://127.0.0.1:5000`. The application remains loopback-local and paper-only. Runtime state is stored in `data/app_state.sqlite3`; structured logs are written to that database and `logs/app.log`.
@@ -157,8 +184,8 @@ Example:
 ## Test
 
 ```powershell
-python -m pytest -q
-python -m pytest tests/test_strategy_factory_stage3.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage4_assistant_rag.py -q
 ```
 
 Tests cover schema initialization, persistence, reset, ATR sizing, registry loading, custom rules, duplicate risk, broker fail-closed behavior, API envelopes, and corrected UI actions.
@@ -170,13 +197,13 @@ Stage 2 and Stage 3 suites additionally cover execution timing, completed-trade 
 Verify the config-driven catalog counts without starting Flask:
 
 ```powershell
-python -c "from app.strategies.catalog import load_base_strategy_catalog; print('base_count=', len(load_base_strategy_catalog()))"
-python -c "from app.strategies.combos.combo_registry import load_combo_strategy_catalog; print('combo_count=', len(load_combo_strategy_catalog()))"
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "from app.strategies.catalog import load_base_strategy_catalog; print('base_count=', len(load_base_strategy_catalog()))"
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "from app.strategies.combos.combo_registry import load_combo_strategy_catalog; print('combo_count=', len(load_combo_strategy_catalog()))"
 ```
 
 The repository currently contains 233 base definitions (230 named equity/portfolio research definitions plus three options simulations) and 120 combo definitions by static source inspection. These counts must also be confirmed by the commands above in the installed project environment.
 
-Current source-generated status breakdown: 95 active, 130 needs-data, 5 needs-intraday-data, and 3 simulation-only base definitions; 12 active and 108 needs-data combos. Runtime SQLite registry counts remain acceptance items until Python is installed and initialization succeeds.
+Runtime checks confirmed 233 base strategies and 120 combos. Before Stage 4, 95 tests passed; after Stage 4, the full suite passed with 136 tests, including a real `main.py` HTTP startup test.
 
 ## Live-trading warning
 
@@ -198,7 +225,11 @@ Live trading is disabled by default and the Stage 1 broker route refuses activat
 - Catalogued strategies with unavailable dependencies cannot generate signals until those datasets exist.
 - Combo market and sector filters remain unavailable without synchronized context data.
 - Bulk-testing a large catalog without false-discovery controls invites spurious winners.
+- Keyword RAG is transparent and lightweight but less semantic than embedding retrieval.
+- LM Studio must run separately for generated answers; deterministic app search works offline.
+- Trade-history notes/tags are Stage 4 annotations, not yet a full behavioral trade journal.
+- Assistant actions are local approval drafts; the app currently has no multi-user authentication boundary.
 
 ## Roadmap
 
-Stage 4 must not begin until the full pytest suite, catalog import checks, Flask startup, and browser smoke test pass in an environment with Python installed. A future Stage 4 could then add experiment governance: versioned datasets, historical-universe membership, false-discovery controls, nested walk-forward evaluation, strategy-correlation analysis, and reproducible experiment comparison. Live execution should remain disabled.
+Stage 4 is implemented. A future Stage 5 should focus on experiment governance and a richer trade journal—not autonomous execution. Live trading remains disabled.

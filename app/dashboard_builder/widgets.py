@@ -1,0 +1,1 @@
+ALLOWED_WIDGETS={"portfolio_summary","paper_account","open_positions","order_history","trade_history","strategy_signals","strategy_library_summary","combo_library_summary","backtest_summary","equity_curve","drawdown_chart","watchlist","screener_results","risk_events","assistant_insights","system_health"}

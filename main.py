@@ -32,6 +32,11 @@ from app.routes.broker_routes import create_broker_blueprint
 from app.routes.backtest_routes import create_backtest_blueprint
 from app.routes.strategy_library_routes import create_strategy_library_blueprint
 from app.routes.combo_strategy_routes import create_combo_strategy_blueprint
+from app.routes.assistant_routes import create_assistant_blueprint
+from app.routes.rag_routes import create_rag_blueprint
+from app.routes.profile_routes import create_profile_blueprint
+from app.routes.dashboard_builder_routes import create_dashboard_builder_blueprint
+from app.routes.app_search_routes import create_app_search_blueprint
 from app.routes.dashboard_routes import create_dashboard_blueprint
 from app.routes.data_routes import create_data_blueprint
 from app.routes.paper_routes import create_paper_blueprint
@@ -42,6 +47,19 @@ from app.services.strategy_library_service import StrategyLibraryService
 from app.services.combo_strategy_service import ComboStrategyService
 from app.services.paper_trading_service import PaperTradingService
 from app.services.report_service import ReportService
+from app.assistant.action_drafts import ActionDraftService
+from app.assistant.service import AssistantService
+from app.assistant.tool_registry import ToolRegistry
+from app.assistant.tool_executor import ToolExecutor
+from app.assistant.tools.readonly_tools import ReadOnlyTools
+from app.assistant.tools.trade_history_tools import TradeHistoryService
+from app.backtesting.models import BacktestConfig
+from app.dashboard_builder.dashboard_service import DashboardService
+from app.llm.lmstudio_client import LMStudioClient
+from app.profile.profile_service import TradingProfileService
+from app.rag.indexer import RAGIndexer
+from app.rag.retriever import RAGRetriever
+from app.search.search_service import AppSearchService
 
 PIPELINE_LOCK = threading.Lock()
 
@@ -289,6 +307,47 @@ _STRATEGY_LIBRARY = StrategyLibraryService(_DATABASE, _BACKTEST_SERVICE)
 _STRATEGY_LIBRARY.initialize()
 _COMBO_SERVICE = ComboStrategyService(_DATABASE, _STRATEGY_LIBRARY, _BACKTEST_SERVICE)
 _COMBO_SERVICE.initialize()
+_PROFILE_SERVICE = TradingProfileService(_DATABASE)
+_DASHBOARD_SERVICE = DashboardService(_DATABASE)
+_RAG_INDEXER = RAGIndexer(_DATABASE, PROJECT_ROOT)
+_RAG_RETRIEVER = RAGRetriever(_DATABASE)
+_APP_SEARCH_SERVICE = AppSearchService(_DATABASE, _RAG_INDEXER)
+_TRADE_HISTORY_SERVICE = TradeHistoryService(_DATABASE)
+_TOOL_REGISTRY = ToolRegistry()
+_READONLY_TOOLS = ReadOnlyTools(_DATABASE, _PROFILE_SERVICE, _DASHBOARD_SERVICE, _APP_SEARCH_SERVICE, _RAG_RETRIEVER,
+                                _STRATEGY_LIBRARY, _COMBO_SERVICE, _BACKTEST_SERVICE, _PAPER_SERVICE,
+                                _TRADE_HISTORY_SERVICE, lambda: _stage1_state_payload())
+
+
+def _run_approved_backtest(payload): return _BACKTEST_SERVICE.run(BacktestConfig(**payload)).summary()
+def _approved_paper_order(payload):
+    if str(payload.get("mode","PAPER")).upper() != "PAPER": raise PermissionError("Assistant orders are paper-only")
+    return _PAPER_SERVICE.place_order(str(payload["symbol"]),str(payload.get("side","BUY")),int(payload["quantity"]),strategy_id=payload.get("strategy_id"))
+def _apply_strategy_change(payload):
+    changes=payload.get("changes",payload)
+    if set(changes)-{"enabled","strategy_id"}: raise ValueError("Stage 4 strategy changes are limited to approval-protected enable/disable")
+    return _STRATEGY_LIBRARY.toggle(payload["strategy_id"],bool(changes["enabled"]))
+def _apply_combo_change(payload):
+    return _COMBO_SERVICE.update(payload["combo_id"],payload.get("changes",{}))
+
+
+_DRAFT_SERVICE = ActionDraftService(_DATABASE, {
+    "update_profile": _PROFILE_SERVICE.apply,
+    "save_dashboard_layout": _DASHBOARD_SERVICE.save,
+    "delete_dashboard_layout": lambda p: _DASHBOARD_SERVICE.delete(p["layout_id"]),
+    "add_dashboard_widget": lambda p: _DASHBOARD_SERVICE.add_widget(p["layout_id"], p),
+    "remove_dashboard_widget": lambda p: _DASHBOARD_SERVICE.remove_widget(p["layout_id"],p["widget_id"]),
+    "toggle_strategy": lambda p: _STRATEGY_LIBRARY.toggle(p["strategy_id"],bool(p["enabled"])),
+    "toggle_combo": lambda p: _COMBO_SERVICE.toggle(p["combo_id"],bool(p["enabled"])),
+    "apply_strategy_change": _apply_strategy_change,
+    "apply_combo_change": _apply_combo_change,
+    "run_backtest": _run_approved_backtest,
+    "place_paper_order": _approved_paper_order,
+    "reset_paper_account": lambda _p: _PAPER_SERVICE.reset(),
+    "add_trade_journal_note": _TRADE_HISTORY_SERVICE.annotate,
+})
+_TOOL_EXECUTOR = ToolExecutor(_TOOL_REGISTRY,_READONLY_TOOLS,_DRAFT_SERVICE)
+_ASSISTANT_SERVICE = AssistantService(_DATABASE,LMStudioClient(),_RAG_RETRIEVER,_TOOL_EXECUTOR,_DRAFT_SERVICE,_PROFILE_SERVICE,_TRADE_HISTORY_SERVICE)
 
 
 def _stage1_state_payload() -> dict:
@@ -393,6 +452,11 @@ def create_flask_app():
     app.register_blueprint(create_backtest_blueprint(_BACKTEST_SERVICE))
     app.register_blueprint(create_strategy_library_blueprint(_STRATEGY_LIBRARY, _BACKTEST_SERVICE))
     app.register_blueprint(create_combo_strategy_blueprint(_COMBO_SERVICE, _BACKTEST_SERVICE))
+    app.register_blueprint(create_assistant_blueprint(_ASSISTANT_SERVICE,_DRAFT_SERVICE,_TOOL_REGISTRY))
+    app.register_blueprint(create_rag_blueprint(_RAG_INDEXER,_RAG_RETRIEVER))
+    app.register_blueprint(create_profile_blueprint(_PROFILE_SERVICE,_DRAFT_SERVICE))
+    app.register_blueprint(create_dashboard_builder_blueprint(_DASHBOARD_SERVICE,_DRAFT_SERVICE))
+    app.register_blueprint(create_app_search_blueprint(_APP_SEARCH_SERVICE,_TRADE_HISTORY_SERVICE,_DRAFT_SERVICE))
 
     @app.get("/api/get_reports")
     def get_reports():
@@ -402,14 +466,22 @@ def create_flask_app():
     return app
 
 
+def _startup_maintenance() -> None:
+    """Refresh data/report artifacts without delaying dashboard availability."""
+    try:
+        sync_result = data.download_all()
+        log_event("info", "main", "data_sync", "Raw data synchronization completed", sync_result)
+        if _DATA_SERVICE.reports_stale() or not load_cached_report():
+            log_event("info", "main", "startup_recalibration", "Cached report missing or stale; rebuilding reports")
+            _REPORT_SERVICE.recalibrate()
+            load_cached_report()
+    except Exception as exc:
+        APP_STATE.update({"status":"Warning","last_error":str(exc)})
+        log_event("error", "main", "startup_maintenance_failed", str(exc))
+
+
 def main() -> None:
     cfg.ensure_directories()
-    sync_result = data.download_all()
-    log_event("info", "main", "data_sync", "Raw data synchronization completed", sync_result)
-    if _DATA_SERVICE.reports_stale() or not load_cached_report():
-        print("[MAIN] Cached report missing or stale; building reports from canonical data.")
-        _REPORT_SERVICE.recalibrate()
-        load_cached_report()
 
     print("=" * 80)
     print("  INTERACTIVE ALGO TRADING TERMINAL")
@@ -420,6 +492,7 @@ def main() -> None:
     print("=" * 80)
 
     app = create_flask_app()
+    threading.Thread(target=_startup_maintenance, name="startup-maintenance", daemon=True).start()
     app.run(host=cfg.DASHBOARD_HOST, port=cfg.DASHBOARD_PORT, debug=False, threaded=True)
 
 

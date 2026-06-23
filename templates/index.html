@@ -10,6 +10,10 @@
 <link rel="stylesheet" href="/static/css/backtests.css"/>
 <link rel="stylesheet" href="/static/css/strategy_library.css"/>
 <link rel="stylesheet" href="/static/css/combo_builder.css"/>
+<link rel="stylesheet" href="/static/css/assistant.css"/>
+<link rel="stylesheet" href="/static/css/app_search.css"/>
+<link rel="stylesheet" href="/static/css/profile.css"/>
+<link rel="stylesheet" href="/static/css/custom_dashboard.css"/>
 <style>
 /* ── RESET & TOKENS ─────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -264,6 +268,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
     <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
     <span class="nav-tip">Reports</span>
   </div>
+  <div class="nav-icon" data-tab="assistant" onclick="switchTab('assistant',this)"><span>AI</span><span class="nav-tip">Assistant</span></div>
+  <div class="nav-icon" data-tab="search" onclick="switchTab('search',this)"><span>⌕</span><span class="nav-tip">App Search</span></div>
+  <div class="nav-icon" data-tab="profile" onclick="switchTab('profile',this)"><span>◎</span><span class="nav-tip">Trading Profile</span></div>
+  <div class="nav-icon" data-tab="dashboards" onclick="switchTab('dashboards',this)"><span>▦</span><span class="nav-tip">Custom Dashboards</span></div>
   <!-- Settings -->
   <div class="nav-icon" style="margin-top:auto" data-tab="settings" onclick="switchTab('settings',this)">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -282,6 +290,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
   <div class="tab" id="tab-orders" onclick="switchTab('orders',null)">Order desk</div>
   <div class="tab" id="tab-backtests" onclick="switchTab('backtests',null)">Backtests</div>
   <div class="tab" id="tab-reports" onclick="switchTab('reports',null)">Reports</div>
+  <div class="tab" id="tab-assistant" onclick="switchTab('assistant',null)">Assistant</div>
+  <div class="tab" id="tab-search" onclick="switchTab('search',null)">Search</div>
+  <div class="tab" id="tab-profile" onclick="switchTab('profile',null)">Profile</div>
+  <div class="tab" id="tab-dashboards" onclick="switchTab('dashboards',null)">Dashboards</div>
   <div class="tab" id="tab-settings" onclick="switchTab('settings',null)">Settings</div>
 </div>
 <div class="workspace-map" aria-label="Platform workspaces">
@@ -637,6 +649,32 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 <!-- ════════════════════════════════════════════
      SETTINGS
 ═══════════════════════════════════════════════ -->
+<div class="pane" id="pane-assistant">
+  <div class="sec-hdr"><h2>Local Research Assistant</h2><span id="assistant-model-status" class="badge">Checking LM Studio…</span></div>
+  <div class="assistant-safety">Human-controlled research assistant · no live orders · every mutation requires explicit approval.</div>
+  <div class="assistant-shell">
+    <aside class="card assistant-conversations"><div class="card-title">Conversations</div><div id="assistant-conversations" class="empty">No conversations yet.</div></aside>
+    <section class="card assistant-chat"><div id="assistant-messages" class="assistant-messages"><div class="empty">Ask about strategies, backtests, trades, risk events, or your profile.</div></div><div class="assistant-prompts"><button onclick="askAssistant('Show my trading profile')">Trading profile</button><button onclick="askAssistant('Search my RSI strategies')">RSI strategies</button><button onclick="askAssistant('Explain my latest backtest')">Latest backtest</button><button onclick="askAssistant('Show my trade history')">Trade history</button></div><div class="assistant-input"><input id="assistant-input" placeholder="Ask the local assistant…"><button class="btn btn-primary" onclick="sendAssistantMessage()">Send</button></div></section>
+    <aside class="card assistant-context"><div class="card-title">Retrieved context</div><div id="assistant-context" class="empty">RAG context appears here.</div><div class="card-title" style="margin-top:16px">Action preview</div><div id="assistant-draft" class="empty">No pending draft.</div></aside>
+  </div>
+</div>
+
+<div class="pane" id="pane-search">
+  <div class="sec-hdr"><h2>App-wide Search</h2><button class="btn" onclick="reindexAppSearch()">Reindex</button></div>
+  <div class="card"><div class="search-controls"><input id="app-search-query" placeholder="Strategies, trades, backtests, orders, risk events, docs…"><select id="app-search-type"><option value="">All sources</option><option>strategy</option><option>combo</option><option>backtest</option><option>paper_trade</option><option>paper_order</option><option>risk_event</option><option>docs</option></select><input id="app-search-symbol" placeholder="Symbol"><button class="btn btn-primary" onclick="runAppSearch()">Search</button></div></div>
+  <div id="app-search-results" class="search-results"><div class="empty">Build the local index, then search app state and documentation.</div></div>
+</div>
+
+<div class="pane" id="pane-profile">
+  <div class="sec-hdr"><h2>Trading Profile</h2><span class="badge badge-accent">Approval protected</span></div>
+  <div class="profile-grid"><div class="card"><div class="card-title">Preferences &amp; risk</div><div id="profile-form" class="empty">Loading profile…</div><button class="btn btn-primary" onclick="draftProfileUpdate()">Preview update</button></div><div class="card"><div class="card-title">Pending profile update</div><div id="profile-draft" class="empty">No draft.</div></div></div>
+</div>
+
+<div class="pane" id="pane-dashboards">
+  <div class="sec-hdr"><h2>Custom Dashboards</h2><button class="btn btn-primary" onclick="draftResearchDashboard()">Draft research dashboard</button></div>
+  <div class="dashboard-builder"><aside class="card"><div class="card-title">Saved layouts</div><div id="dashboard-list" class="empty">No layouts.</div></aside><section class="card"><div class="card-title">Widget grid</div><div id="dashboard-grid" class="dashboard-grid"><div class="empty">Select a dashboard.</div></div></section><aside class="card"><div class="card-title">Approval preview</div><div id="dashboard-draft" class="empty">No pending draft.</div></aside></div>
+</div>
+
 <div class="pane" id="pane-settings">
   <div class="g2">
     <div class="card">
@@ -1258,6 +1296,10 @@ function switchTab(name, iconEl) {
   if (name === 'backtests') loadBacktests();
   if (name === 'library') loadStrategyLibrary();
   if (name === 'combos') loadComboBuilder();
+  if (name === 'assistant') loadAssistant();
+  if (name === 'search') loadAppSearch();
+  if (name === 'profile') loadTradingProfile();
+  if (name === 'dashboards') loadCustomDashboards();
 }
 
 /* ── HELPERS ───────────────────────────────────── */
@@ -1289,6 +1331,10 @@ function toast(msg, type='info') {
 <script src="/static/js/backtests.js"></script>
 <script src="/static/js/strategy_library.js"></script>
 <script src="/static/js/combo_builder.js"></script>
+<script src="/static/js/assistant.js"></script>
+<script src="/static/js/app_search.js"></script>
+<script src="/static/js/profile.js"></script>
+<script src="/static/js/custom_dashboard.js"></script>
 
 </body>
 </html>

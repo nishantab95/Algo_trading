@@ -143,4 +143,67 @@ MIGRATIONS: list[tuple[int, str]] = [
     CREATE INDEX IF NOT EXISTS idx_strategy_validation_id ON strategy_validation_results(strategy_id,checked_at DESC);
     CREATE INDEX IF NOT EXISTS idx_combo_category ON combo_strategy_definitions(category,status,enabled);
     """),
+    (4, """
+    CREATE TABLE IF NOT EXISTS assistant_conversations (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS assistant_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id TEXT NOT NULL, role TEXT NOT NULL,
+        content TEXT NOT NULL, tool_calls_json TEXT NOT NULL DEFAULT '[]',
+        retrieved_context_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL,
+        FOREIGN KEY(conversation_id) REFERENCES assistant_conversations(id)
+    );
+    CREATE TABLE IF NOT EXISTS assistant_action_drafts (
+        id TEXT PRIMARY KEY, conversation_id TEXT, action_type TEXT NOT NULL, status TEXT NOT NULL,
+        draft_json TEXT NOT NULL, validation_json TEXT NOT NULL, risk_check_json TEXT NOT NULL,
+        approval_required INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL,
+        approved_at TEXT, rejected_at TEXT, executed_at TEXT,
+        FOREIGN KEY(conversation_id) REFERENCES assistant_conversations(id)
+    );
+    CREATE TABLE IF NOT EXISTS rag_documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, source_type TEXT NOT NULL, source_id TEXT NOT NULL,
+        title TEXT NOT NULL, content TEXT NOT NULL, metadata_json TEXT NOT NULL DEFAULT '{}',
+        content_hash TEXT NOT NULL, indexed_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        UNIQUE(source_type, source_id)
+    );
+    CREATE TABLE IF NOT EXISTS rag_chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, document_id INTEGER NOT NULL, chunk_index INTEGER NOT NULL,
+        content TEXT NOT NULL, metadata_json TEXT NOT NULL DEFAULT '{}', indexed_at TEXT NOT NULL,
+        FOREIGN KEY(document_id) REFERENCES rag_documents(id) ON DELETE CASCADE,
+        UNIQUE(document_id, chunk_index)
+    );
+    CREATE TABLE IF NOT EXISTS app_search_index (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, result_type TEXT NOT NULL, source_id TEXT NOT NULL,
+        title TEXT NOT NULL, summary TEXT NOT NULL, keywords TEXT NOT NULL DEFAULT '',
+        metadata_json TEXT NOT NULL DEFAULT '{}', updated_at TEXT NOT NULL,
+        UNIQUE(result_type, source_id)
+    );
+    CREATE TABLE IF NOT EXISTS trading_profile (
+        id INTEGER PRIMARY KEY CHECK(id=1), profile_name TEXT NOT NULL, config_json TEXT NOT NULL,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS dashboard_layouts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, layout_id TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '', layout_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS dashboard_widgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, layout_id TEXT NOT NULL, widget_id TEXT NOT NULL,
+        widget_type TEXT NOT NULL, title TEXT NOT NULL, config_json TEXT NOT NULL DEFAULT '{}',
+        position_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        FOREIGN KEY(layout_id) REFERENCES dashboard_layouts(layout_id) ON DELETE CASCADE,
+        UNIQUE(layout_id, widget_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_assistant_messages_conversation ON assistant_messages(conversation_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_action_drafts_status ON assistant_action_drafts(status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_rag_documents_source ON rag_documents(source_type, source_id);
+    CREATE INDEX IF NOT EXISTS idx_search_type ON app_search_index(result_type, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_dashboard_widgets_layout ON dashboard_widgets(layout_id);
+    """),
+    (5, """
+    CREATE TABLE IF NOT EXISTS trade_history_annotations (
+        trade_id TEXT PRIMARY KEY, notes TEXT NOT NULL DEFAULT '', tags_json TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    """),
 ]

@@ -42,8 +42,8 @@ def calculate_metrics(trades: list[Trade], equity_curve: list[dict], initial_cap
         std = daily_returns.std(ddof=0); downside = daily_returns[daily_returns < 0].std(ddof=0)
         sharpe = np.sqrt(252) * daily_returns.mean() / std if std and math.isfinite(std) else 0.0
         sortino = np.sqrt(252) * daily_returns.mean() / downside if downside and math.isfinite(downside) else 0.0
-        monthly = {str(k): round(float(v) * 100, 3) for k, v in curve["total_equity"].resample("M").last().pct_change().dropna().items()}
-        yearly = {str(k.year): round(float(v) * 100, 3) for k, v in curve["total_equity"].resample("Y").last().pct_change().dropna().items()}
+        monthly = {str(k): round(float(v) * 100, 3) for k, v in curve["total_equity"].resample("ME").last().pct_change().dropna().items()}
+        yearly = {str(k.year): round(float(v) * 100, 3) for k, v in curve["total_equity"].resample("YE").last().pct_change().dropna().items()}
     costs = sum(trade.costs for trade in trades)
     avg_win = float(wins.mean()) if wins.size else 0.0; avg_loss = float(losses.mean()) if losses.size else 0.0
     statuses = [trade.net_pnl > 0 for trade in trades]

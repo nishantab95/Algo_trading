@@ -8,5 +8,8 @@ kiteconnect>=5.0.1
 APScheduler>=3.10.0
 pytest>=8.0.0
 
-# Install all at once:
-# pip install -r requirements.txt
+# Project interpreter (Windows):
+# C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe
+# Install with:
+# & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip install -r requirements.txt
+# Stage 4 uses urllib + SQLite from the standard library; no heavy ML/vector dependencies are required.
