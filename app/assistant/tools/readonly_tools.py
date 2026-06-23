@@ -15,7 +15,9 @@ class ReadOnlyTools:
             "get_paper_account":lambda:self.paper.account() if self.paper else {},"get_paper_positions":lambda:self.paper.positions() if self.paper else [],"get_paper_orders":lambda:self.paper.orders() if self.paper else [],
             "get_trade_history":lambda:self.trade_history.list(args) if self.trade_history else [],"get_risk_events":lambda:self.database.query("SELECT * FROM risk_events ORDER BY created_at DESC LIMIT 200"),"get_system_logs":lambda:self.database.query("SELECT * FROM system_logs ORDER BY created_at DESC LIMIT 200"),
             "search_app":lambda:self.search.search(args.get("query",""),args),"search_docs":lambda:self.rag.search(args.get("query",""),"docs"),"search_strategies":lambda:self.search.search(args.get("query",""),{"result_type":"strategy"}),"search_trades":lambda:self.trade_history.list(args),"search_backtests":lambda:self.search.search(args.get("query",""),{"result_type":"backtest"}),
-            "get_trade_journal":lambda:{"status":"pending_stage5","entries":[]},"get_watchlists":lambda:[],"get_saved_screeners":lambda:[],"get_latest_signals":lambda:[],
+            "get_trade_journal":lambda:{"status":"stage4_annotations_only","entries":self.database.query("SELECT * FROM trade_history_annotations ORDER BY updated_at DESC")},
+            "get_watchlists":lambda:self.database.query("SELECT * FROM watchlists ORDER BY updated_at DESC"),
+            "get_saved_screeners":lambda:self.database.query("SELECT * FROM saved_screeners ORDER BY updated_at DESC"),"get_latest_signals":lambda:[],
         }
         if name not in mapping: raise ValueError(f"Read-only tool is not implemented: {name}")
         return mapping[name]()

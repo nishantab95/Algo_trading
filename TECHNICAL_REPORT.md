@@ -730,7 +730,7 @@ The profile stores market/timeframe preferences, capital/risk limits, favorites,
 
 ### Database additions
 
-Migrations 4–5 add conversations, messages, action drafts, RAG documents/chunks, app-search records, trading profile, dashboard layouts/widgets, and trade annotations. Migrations are additive and preserve Stage 1–3 data.
+Migrations 4–6 add conversations, messages, action drafts, RAG documents/chunks, app-search records, trading profile, dashboard layouts/widgets, trade annotations, watchlists, and saved screeners. Migrations are additive and preserve Stage 1–3 data.
 
 ### API and UI summary
 
@@ -747,8 +747,8 @@ Stage 4 adds assistant status/chat/conversation/draft approval routes; RAG reind
 
 ### Test and verification result
 
-- Dedicated Stage 4 suite: `41 passed`.
-- Full Stage 1–4 suite: `136 passed` with no warnings after the resampling fix.
+- Dedicated Stage 4 suite: `44 passed`.
+- Full Stage 1–4 suite: `139 passed` with no warnings after the resampling fix.
 - Migrations smoke test: schema versions 1–4 loaded before migration 5 was added; migration 5 is covered by the final suite requirement.
 - Flask composition smoke test: 71 routes loaded before the final route-neutral hardening changes.
 - A source-aware RAG ranking defect was found and fixed during testing.
@@ -762,9 +762,9 @@ LM Studio generated chat requires a separately running local server. Retrieval i
 
 | Stage | Area | Status | Evidence | Remaining Work |
 |---|---|---|---|---|
-| Stage 1 | Foundation/Persistence/UI | PASS | Verified in the 95-test baseline and 136-test combined suite. | Keep live mode disabled. |
+| Stage 1 | Foundation/Persistence/UI | PASS | Verified in the 95-test baseline and 139-test combined suite. | Keep live mode disabled. |
 | Stage 2 | Completed-trade backtesting | PASS | Lifecycle, cost, persistence, report, and API tests pass. | Preserve research limitations. |
 | Stage 3 | Strategy Library/Combos | PASS | Runtime counts 233/120 and integration tests pass. | Supply missing external datasets only when audited. |
-| Stage 4 | Assistant/RAG/Search/Profile/Dashboards | PASS | 41 dedicated tests, 136 combined tests, and real HTTP startup passed. | Complete visual/browser-console review when browser automation is available. |
+| Stage 4 | Assistant/RAG/Search/Profile/Dashboards | PASS | 44 dedicated tests, 139 combined tests, and real HTTP startup passed. | Keep LM Studio and live trading as separate, disabled-by-default boundaries. |
 
 **Stage 1–4 are stable enough to proceed to Stage 5.**

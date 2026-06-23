@@ -157,3 +157,27 @@ def test_stage4_main_process_serves_http_with_project_interpreter():
         process.terminate()
         try: process.wait(timeout=10)
         except subprocess.TimeoutExpired: process.kill();process.wait(timeout=5)
+
+def test_draft_tools_map_to_executable_approval_actions(stack):
+    expected={
+        "draft_strategy_change":"apply_strategy_change",
+        "draft_dashboard_layout":"save_dashboard_layout",
+        "draft_profile_update":"update_profile",
+        "draft_paper_order":"place_paper_order",
+    }
+    for tool,action in expected.items():
+        assert stack.executor.execute(tool,{"preview":True})["action_type"]==action
+
+def test_failed_risk_check_blocks_approval(stack):
+    called=[]
+    service=ActionDraftService(stack.db,{"risk_test":lambda payload:called.append(payload)})
+    draft=service.create("risk_test",{"quantity":1},risk_check={"approved":False,"reason":"Risk limit"})
+    with pytest.raises(PermissionError,match="risk check failed"):
+        service.approve(draft["id"],"user")
+    assert called==[] and service.get(draft["id"])["status"]=="pending"
+
+def test_stage4_structured_sources_include_watchlists_screeners_and_annotations(stack):
+    tables={row["name"] for row in stack.db.query("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert {"watchlists","saved_screeners","trade_history_annotations"} <= tables
+    assert stack.readonly.execute("get_watchlists")==[]
+    assert stack.readonly.execute("get_saved_screeners")==[]

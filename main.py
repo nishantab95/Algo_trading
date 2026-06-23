@@ -330,6 +330,24 @@ def _apply_strategy_change(payload):
 def _apply_combo_change(payload):
     return _COMBO_SERVICE.update(payload["combo_id"],payload.get("changes",{}))
 
+def _save_named_config(table,payload):
+    import json, uuid
+    from datetime import datetime, timezone
+    singular="watchlist" if table=="watchlists" else "screener"
+    item_id=str(payload.get("id") or f"{singular}_"+uuid.uuid4().hex[:10])
+    name=str(payload.get("name") or item_id); now=datetime.now(timezone.utc).isoformat()
+    value=payload.get("symbols",[]) if table=="watchlists" else payload.get("config",payload)
+    value_col="symbols_json" if table=="watchlists" else "config_json"
+    with _DATABASE.transaction() as c:
+        c.execute(f"INSERT INTO {table}(id,name,{value_col},created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,{value_col}=excluded.{value_col},updated_at=excluded.updated_at",(item_id,name,json.dumps(value),now,now))
+    return {"id":item_id,"name":name,"value":value}
+
+def _update_risk_setting(payload):
+    allowed={"risk_per_trade_pct","max_daily_loss","max_open_positions"}
+    changes=payload.get("changes",payload)
+    if set(changes)-allowed: raise ValueError("Only profile risk settings may be changed in Stage 4")
+    return _PROFILE_SERVICE.apply(changes)
+
 
 _DRAFT_SERVICE = ActionDraftService(_DATABASE, {
     "update_profile": _PROFILE_SERVICE.apply,
@@ -343,8 +361,12 @@ _DRAFT_SERVICE = ActionDraftService(_DATABASE, {
     "apply_combo_change": _apply_combo_change,
     "run_backtest": _run_approved_backtest,
     "place_paper_order": _approved_paper_order,
+    "cancel_paper_order": lambda p: _PAPER_SERVICE.cancel_order(str(p["order_id"])),
     "reset_paper_account": lambda _p: _PAPER_SERVICE.reset(),
     "add_trade_journal_note": _TRADE_HISTORY_SERVICE.annotate,
+    "save_screener": lambda p: _save_named_config("saved_screeners",p),
+    "update_watchlist": lambda p: _save_named_config("watchlists",p),
+    "update_risk_setting": _update_risk_setting,
 })
 _TOOL_EXECUTOR = ToolExecutor(_TOOL_REGISTRY,_READONLY_TOOLS,_DRAFT_SERVICE)
 _ASSISTANT_SERVICE = AssistantService(_DATABASE,LMStudioClient(),_RAG_RETRIEVER,_TOOL_EXECUTOR,_DRAFT_SERVICE,_PROFILE_SERVICE,_TRADE_HISTORY_SERVICE)

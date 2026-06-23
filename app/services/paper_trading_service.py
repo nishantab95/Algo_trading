@@ -17,6 +17,7 @@ class PaperTradingService:
     def positions(self) -> list[dict]: return self.broker.get_positions()
     def orders(self, limit: int = 200) -> list[dict]: return self.database.query("SELECT * FROM paper_orders ORDER BY created_at DESC LIMIT ?", (limit,))
     def trades(self, limit: int = 200) -> list[dict]: return self.database.query("SELECT * FROM paper_trades ORDER BY exit_time DESC LIMIT ?", (limit,))
+    def cancel_order(self, order_id: str) -> dict: return self.broker.cancel_order(order_id)
     def reset(self) -> dict: self.broker.reset(); return self.snapshot()
 
     def exit_sweep(self) -> dict:

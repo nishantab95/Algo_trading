@@ -27,6 +27,9 @@ TABLE_SOURCES = {
     "dashboard_layouts": ("dashboard", "layout_id", "name", ("description", "layout_json")),
     "dashboard_widgets": ("dashboard_widget", "id", "title", ("widget_type", "config_json")),
     "trading_profile": ("profile", "id", "profile_name", ("config_json",)),
+    "watchlists": ("watchlist", "id", "name", ("symbols_json",)),
+    "saved_screeners": ("screener", "id", "name", ("config_json",)),
+    "trade_history_annotations": ("trade_journal", "trade_id", "trade_id", ("notes", "tags_json")),
 }
 
 

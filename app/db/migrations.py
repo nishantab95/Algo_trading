@@ -206,4 +206,16 @@ MIGRATIONS: list[tuple[int, str]] = [
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
     """),
+    (6, """
+    CREATE TABLE IF NOT EXISTS watchlists (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, symbols_json TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS saved_screeners (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, config_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_watchlists_updated ON watchlists(updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_saved_screeners_updated ON saved_screeners(updated_at DESC);
+    """),
 ]

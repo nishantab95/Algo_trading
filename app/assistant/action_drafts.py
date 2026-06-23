@@ -19,6 +19,7 @@ class ActionDraftService:
         draft=self.get(draft_id)
         if draft["status"]!="pending": raise ValueError(f"Draft is already {draft['status']}")
         if not draft["validation"].get("valid",False): raise ValueError("Draft validation failed")
+        if not draft["risk_check"].get("approved",False): raise PermissionError("Draft risk check failed")
         handler=self.handlers.get(draft["action_type"])
         if handler is None: raise ValueError(f"No approved executor for {draft['action_type']}")
         result=handler(draft["draft"]); now=datetime.now(timezone.utc).isoformat()

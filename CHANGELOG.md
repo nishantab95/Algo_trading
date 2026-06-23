@@ -6,7 +6,7 @@
 
 - Verified `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe` as Python 3.10.11.
 - Verified the Stage 1–3 baseline: 95 tests passed, 233 base strategies, and 120 combos.
-- Added 41 dedicated Stage 4 tests; the full suite reached 136 passing tests.
+- Added 44 dedicated Stage 4 tests; the full suite reached 139 passing tests.
 - Kept dependencies minimal: standard-library HTTP and SQLite; no LangChain, vector database, or ML/DL package.
 
 ### Stage 4 implementation
@@ -16,6 +16,8 @@
 - Added controlled read-only, draft, approval-required, and forbidden tool boundaries.
 - Added persisted conversations, action drafts, profiles, dashboards/widgets, search records, and trade annotations through migrations 4–5.
 - Added approval-protected profile, dashboard, strategy/combo, backtest, paper-order, reset, and trade-note boundaries.
+- Added watchlist and saved-screener persistence through additive migration 6 and included both in local retrieval.
+- Corrected draft-tool action mapping, enforced failed risk checks at approval, and completed deterministic executors for watchlists, screeners, risk settings, and paper-order cancellation.
 - Added integrated Assistant, Search, Profile, and Custom Dashboard workspaces.
 - Made startup maintenance non-blocking, fixed source-aware RAG ranking, and removed pandas resampling warnings.
 

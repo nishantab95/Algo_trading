@@ -203,7 +203,7 @@ Verify the config-driven catalog counts without starting Flask:
 
 The repository currently contains 233 base definitions (230 named equity/portfolio research definitions plus three options simulations) and 120 combo definitions by static source inspection. These counts must also be confirmed by the commands above in the installed project environment.
 
-Runtime checks confirmed 233 base strategies and 120 combos. Before Stage 4, 95 tests passed; after Stage 4, the full suite passed with 136 tests, including a real `main.py` HTTP startup test.
+Runtime checks confirmed 233 base strategies and 120 combos. Before Stage 4, 95 tests passed; after the Stage 4 safety audit, the full suite passed with 139 tests (44 dedicated Stage 4 tests), including a real `main.py` HTTP startup test.
 
 ## Live-trading warning
 
