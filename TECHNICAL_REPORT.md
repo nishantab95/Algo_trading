@@ -736,6 +736,8 @@ Migrations 4–6 add conversations, messages, action drafts, RAG documents/chunk
 
 Stage 4 adds assistant status/chat/conversation/draft approval routes; RAG reindex/status/search; global app search; profile draft/update; dashboard layout/widget draft routes; and unified trade-history routes. The integrated terminal adds Assistant, Search, Profile, and Custom Dashboard workspaces with offline status, context chips, draft previews, approve/reject controls, search filters, profile risk fields, and widget grids.
 
+The app-search service performs a deterministic initial reindex when its local index is empty. Search APIs therefore work on first use and do not depend on a prior RAG test or manual reindex action.
+
 ### Safety restrictions
 
 - No ML/DL prediction model was added.
@@ -768,3 +770,61 @@ LM Studio generated chat requires a separately running local server. Retrieval i
 | Stage 4 | Assistant/RAG/Search/Profile/Dashboards | PASS | 44 dedicated tests, 139 combined tests, and real HTTP startup passed. | Keep LM Studio and live trading as separate, disabled-by-default boundaries. |
 
 **Stage 1–4 are stable enough to proceed to Stage 5.**
+
+## Stage 5 — Paper Trading and Portfolio Operations Terminal
+
+### Environment and verification
+
+Stage 5 was implemented and tested with `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe` (Python 3.10.11). The pre-change Stage 1–4 gate passed 139 tests and the live Flask dashboard rendered the Backtesting Lab, Strategy Library, Combo Builder, Assistant, Search, Profile, and Custom Dashboard workspaces. The Stage 5 suite contains 40 tests; final combined results are recorded below after startup verification.
+
+### Architecture and durable accounting
+
+`app/paper` owns the approval-gated broker simulator, schemas, fills, positions, exits, reconciliation, journal constants, analytics, and CSV reports. `app/portfolio` provides valuation, exposure, P&L, performance, risk, and snapshot projections. Focused services and the `paper_trading_routes` blueprint expose operations without importing or calling the live broker.
+
+Migration 7 is additive. It creates `paper_accounts`, `paper_fills`, `paper_order_events`, `paper_trade_journal`, `paper_account_snapshots`, `paper_strategy_reviews`, `paper_reset_archives`, and `paper_risk_settings`, and extends the existing Stage 1 paper order/position tables. Existing Stage 1–4 records are not deleted. The default account is future-ready for multiple account IDs, cash-backed, long-only, unleveraged, restart-persistent, and protected by a non-negative-cash invariant.
+
+### Orders, fills, positions, and exits
+
+Orders move through pending approval, approval, submission, fill/rejection/cancellation/expiry states with a durable transition event. Market, limit, stop, and stop-limit rules are deterministic. Fills record requested/fill price, slippage, spread, fees, total cost, reason, and time. Risk checks cover approval, quantity, cash, order/position limits, duplicate positions, averaging down, stale data, liquidity, price range, required stops, and kill switch; rejections are written to `risk_events`.
+
+Buys create or explicitly increase positions using weighted average price. Sells support partial/full exits and create after-cost journal rows. Mark-to-market updates current value, unrealized P&L, percentage return, and high/low watermarks. Stop, target, and trailing exits use the same order/fill/accounting path. The exit sweep returns `entries_created: 0` and has no entry path.
+
+### Portfolio, journal, analytics, and reviews
+
+Every accepted fill produces an account snapshot. Portfolio projections expose cash, equity, realized/unrealized and period P&L, gross/net and grouped exposure, drawdown, open risk, costs, orders, and trades. Reset requires explicit confirmation, archives prior state, and restores starting capital safely.
+
+The journal records linked entry/exit orders, strategy/combo/source, prices, quantity, gross/cost/net results, return, holding period, reasons, mistake tags, notes, confidence, and rule-following state. Updates require explicit approval at the API/assistant boundary. CSV exports cover account, positions, orders, fills, trades/journal, strategy reviews, and daily equity.
+
+Analytics provide net P&L, returns, win rate, profit factor, expectancy, average win/loss, payoff, drawdown, best/worst trade, holding duration, costs, cost drag, grouped P&L, mistake frequency, and rule-following rate. Configurable paper reviews recommend more data, rejection, or tiny-live candidacy. A recommendation does not enable live trading and assistant-driven persistence remains approval-gated.
+
+### Assistant, APIs, and UI
+
+Stage 4 read tools now cover the Stage 5 account, orders, fills, positions, snapshots, analytics, and reviews. Draft/approval tools cover orders, exits, journal changes, strategy paper status, reset, cancellation, and paper risk changes. The assistant cannot approve itself and the paper engine has no Kite/live-broker dependency.
+
+The API adds account reset/snapshots; order create/detail/approve/cancel; position detail/exit/partial-exit/risk; exit-only sweep; portfolio summary/equity/exposure/P&L; journal detail/notes/tags/rule/export; analytics summaries/grouping/mistakes/reviews; and report export. Responses use the shared success/data/warnings or error/details envelope.
+
+The dark terminal adds account cards, positions, approval order ticket, order blotter, journal, risk dashboard, analytics/equity chart, strategy review board, assistant insight boundary, loading/empty states, warning badges, and report exports. No live-order or live-enable control exists.
+
+### Limitations
+
+Current fills are deterministic and accepted quantities fill completely; `partially_filled` is reserved for a later liquidity model. EOD/latest-price availability depends on local data. Daily/weekly/monthly P&L currently measure change from account starting capital rather than exchange-calendar period boundaries. Strategy review duration is conservative and should be upgraded to trading-calendar days. Paper execution cannot reproduce queue priority, impact, outages, auctions, or all Indian-market charges. Paper results do not establish profitability.
+
+**Stage 5 safety status:** live trading remains disabled; paper and assistant mutations remain human-approved and risk-gated.
+
+### Final Stage 5 verification result
+
+- Dedicated Stage 5 suite: `40 passed`.
+- Full Stage 1–5 suite: `179 passed`.
+- Additive migration versions: `1, 2, 3, 4, 5, 6, 7`.
+- CSV report generation: all eight required report files created successfully in an isolated verification directory.
+- Requirements: unchanged; Stage 5 uses the standard library and existing Flask/SQLite stack.
+
+Final startup/UI/API results are documented in the delivery summary. Stage 5 is considered complete only with the paper terminal and all legacy workspaces serving successfully.
+
+### Startup and final status
+
+The post-change Flask process served `/` with HTTP 200 using the exact project interpreter. Live HTML contained the Paper Trading terminal, Portfolio Positions, Order Blotter, Trade Journal, Risk Dashboard, Performance Analytics, Strategy Paper-Testing Board, Assistant Insights, Assistant, Strategy Library, Combo Builder, and Backtesting Lab workspaces. Stage 5 JavaScript/CSS plus account, snapshots, orders, positions, portfolio, journal, analytics, assistant, strategy, combo, and backtest APIs returned HTTP 200. The verification process stopped cleanly.
+
+Interactive browser attachment was unavailable in the execution environment, so pixel-level visual interaction remains a manual acceptance check. Automated HTML composition, live asset/API delivery, lifecycle behavior, safety boundaries, and persistence all pass.
+
+**Stage 5 status: PASS. Stage 1–5 are stable enough to proceed to Stage 6, while live trading remains disabled.**

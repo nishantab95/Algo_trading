@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/static/css/app_search.css"/>
 <link rel="stylesheet" href="/static/css/profile.css"/>
 <link rel="stylesheet" href="/static/css/custom_dashboard.css"/>
+<link rel="stylesheet" href="/static/css/paper_trading.css"/>
 <style>
 /* ── RESET & TOKENS ─────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -259,6 +260,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
     <span class="nav-tip">Order desk</span>
   </div>
+  <div class="nav-icon" data-tab="paper-ops" onclick="switchTab('paper-ops',this)"><span>PT</span><span class="nav-tip">Paper Operations</span></div>
   <!-- Backtests -->
   <div class="nav-icon" data-tab="backtests" onclick="switchTab('backtests',this)">
     <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><polyline points="7 15 11 10 14 13 20 6"/></svg><span class="nav-tip">Backtests</span>
@@ -288,6 +290,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
   <div class="tab" id="tab-library" onclick="switchTab('library',null)">Library</div>
   <div class="tab" id="tab-combos" onclick="switchTab('combos',null)">Combo builder</div>
   <div class="tab" id="tab-orders" onclick="switchTab('orders',null)">Order desk</div>
+  <div class="tab" id="tab-paper-ops" onclick="switchTab('paper-ops',null)">Paper terminal</div>
   <div class="tab" id="tab-backtests" onclick="switchTab('backtests',null)">Backtests</div>
   <div class="tab" id="tab-reports" onclick="switchTab('reports',null)">Reports</div>
   <div class="tab" id="tab-assistant" onclick="switchTab('assistant',null)">Assistant</div>
@@ -649,6 +652,28 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 <!-- ════════════════════════════════════════════
      SETTINGS
 ═══════════════════════════════════════════════ -->
+<div class="pane" id="pane-paper-ops">
+  <div class="sec-hdr"><h2>Paper Trading &amp; Portfolio Operations</h2><div><span class="badge badge-ok">PAPER ONLY</span> <button class="btn" onclick="exportPaperReports()">Export reports</button></div></div>
+  <div class="paper-warning">Broker simulator · long-only · no leverage · every manual order requires approval · live trading remains disabled.</div>
+  <div id="paper-account-cards" class="paper-kpis"><div class="empty">Loading durable paper account…</div></div>
+  <div class="paper-terminal-grid">
+    <section class="card paper-main">
+      <div class="paper-section-head"><div class="card-title">Portfolio Positions</div><button class="btn btn-sm" onclick="runPaperExitSweep()">Run exit-only sweep</button></div>
+      <div class="paper-table-wrap"><table class="tbl paper-table"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>Current</th><th>Value</th><th>Unrealized</th><th>Stop</th><th>Target</th><th>Trailing</th><th>Strategy</th><th>Risk</th><th>Actions</th></tr></thead><tbody id="paper-positions-table"><tr><td colspan="12" class="empty">Loading positions…</td></tr></tbody></table></div>
+    </section>
+    <aside class="card paper-ticket"><div class="card-title">Paper Order Draft</div><div class="field"><label>Symbol</label><input id="paper-order-symbol" value="INFY"></div><div class="g2"><div class="field"><label>Side</label><select id="paper-order-side"><option>BUY</option><option>SELL</option></select></div><div class="field"><label>Quantity</label><input id="paper-order-quantity" type="number" min="1" value="1"></div></div><div class="field"><label>Order type</label><select id="paper-order-type" onchange="togglePaperOrderFields()"><option>market</option><option>limit</option><option>stop</option><option>stop_limit</option></select></div><div class="g2"><div class="field"><label>Limit</label><input id="paper-order-limit" type="number" step=".05"></div><div class="field"><label>Stop</label><input id="paper-order-stop" type="number" step=".05"></div></div><button class="btn btn-primary" onclick="draftPaperOrder()">Create approval draft</button><div id="paper-order-preview" class="empty">No pending order draft.</div></aside>
+  </div>
+  <div class="card"><div class="paper-section-head"><div class="card-title">Order Blotter</div><span class="paper-muted">Status transitions and rejection reasons are durable</span></div><div class="paper-table-wrap"><table class="tbl paper-table"><thead><tr><th>Time</th><th>ID</th><th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Requested</th><th>Fill</th><th>Status</th><th>Source</th><th>Strategy</th><th>Reason</th><th>Actions</th></tr></thead><tbody id="paper-orders-table"></tbody></table></div></div>
+  <div class="paper-lower-grid">
+    <section class="card"><div class="paper-section-head"><div class="card-title">Trade Journal</div><button class="btn btn-sm" onclick="exportPaperJournal()">Export CSV</button></div><div class="paper-table-wrap"><table class="tbl paper-table"><thead><tr><th>Symbol</th><th>Strategy</th><th>Entry</th><th>Exit</th><th>Net P&amp;L</th><th>Return</th><th>Exit reason</th><th>Rule</th><th>Mistakes</th><th>Notes</th><th>Actions</th></tr></thead><tbody id="paper-journal-table"></tbody></table></div></section>
+    <aside class="card"><div class="card-title">Risk Dashboard</div><div id="paper-risk-panel" class="empty">Loading risk state…</div><div class="card-title" style="margin-top:16px">Assistant Insights</div><div id="paper-insights" class="paper-insight">Assistant may explain or draft. It cannot execute without your approval.</div></aside>
+  </div>
+  <div class="paper-lower-grid">
+    <section class="card"><div class="card-title">Performance Analytics</div><div id="paper-analytics-summary" class="paper-metrics"></div><canvas id="paper-equity-chart" height="100"></canvas><div id="paper-analytics-warnings"></div></section>
+    <section class="card"><div class="card-title">Strategy Paper-Testing Board</div><div class="field"><label>Strategy ID</label><div class="btn-row"><input id="paper-review-strategy" placeholder="EMA strategy ID"><button class="btn" onclick="loadPaperReview()">Review</button></div></div><div id="paper-review-board" class="empty">Select a strategy for a promotion-readiness review.</div></section>
+  </div>
+</div>
+
 <div class="pane" id="pane-assistant">
   <div class="sec-hdr"><h2>Local Research Assistant</h2><span id="assistant-model-status" class="badge">Checking LM Studio…</span></div>
   <div class="assistant-safety">Human-controlled research assistant · no live orders · every mutation requires explicit approval.</div>
@@ -1300,6 +1325,7 @@ function switchTab(name, iconEl) {
   if (name === 'search') loadAppSearch();
   if (name === 'profile') loadTradingProfile();
   if (name === 'dashboards') loadCustomDashboards();
+  if (name === 'paper-ops') loadPaperOperations();
 }
 
 /* ── HELPERS ───────────────────────────────────── */
@@ -1335,6 +1361,7 @@ function toast(msg, type='info') {
 <script src="/static/js/app_search.js"></script>
 <script src="/static/js/profile.js"></script>
 <script src="/static/js/custom_dashboard.js"></script>
+<script src="/static/js/paper_trading.js"></script>
 
 </body>
 </html>

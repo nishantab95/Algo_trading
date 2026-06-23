@@ -14,6 +14,8 @@ DRAFT_ACTIONS={
     "draft_profile_update":"update_profile",
     "draft_trade_journal_note":"add_trade_journal_note",
     "draft_paper_order":"place_paper_order",
+    "draft_exit_order":"exit_paper_position",
+    "draft_strategy_paper_review":"update_strategy_paper_status",
     "draft_risk_setting_change":"update_risk_setting",
 }
 

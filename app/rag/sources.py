@@ -30,6 +30,10 @@ TABLE_SOURCES = {
     "watchlists": ("watchlist", "id", "name", ("symbols_json",)),
     "saved_screeners": ("screener", "id", "name", ("config_json",)),
     "trade_history_annotations": ("trade_journal", "trade_id", "trade_id", ("notes", "tags_json")),
+    "paper_fills": ("paper_fill", "id", "symbol", ("side", "fill_price", "fees", "fill_reason")),
+    "paper_trade_journal": ("paper_journal", "id", "symbol", ("strategy_id", "net_pnl", "exit_reason", "mistake_tags_json", "notes")),
+    "paper_account_snapshots": ("paper_snapshot", "id", "snapshot_time", ("total_equity", "daily_pnl", "drawdown_pct")),
+    "paper_strategy_reviews": ("paper_review", "id", "strategy_id", ("promotion_status", "warnings_json")),
 }
 
 

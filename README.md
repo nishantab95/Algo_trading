@@ -232,4 +232,30 @@ Live trading is disabled by default and the Stage 1 broker route refuses activat
 
 ## Roadmap
 
-Stage 4 is implemented. A future Stage 5 should focus on experiment governance and a richer trade journal—not autonomous execution. Live trading remains disabled.
+Stage 4 is implemented and remains the assistant/search layer. Stage 5 now adds the durable paper-operations layer described below. Live trading remains disabled.
+
+## Stage 5 paper trading and portfolio operations
+
+Stage 5 replaces the toy “click buy, show a position” pattern with an approval-gated broker simulator. The durable flow is: order draft → deterministic validation → risk check → explicit user approval → submitted paper order → simulated fill → cash and position accounting → account snapshot → journal and analytics. It never calls the live Zerodha broker.
+
+The default account is long-only, cash-backed, and unleveraged. Cash cannot become negative. Account state, orders, status-transition events, fills, positions, reset archives, snapshots, completed-trade journal entries, and strategy reviews are stored in SQLite through additive migration 7. A reset requires `{ "confirm": true }` and archives the prior account state before clearing Stage 5 operational records.
+
+Supported orders are market, limit, stop, and stop-limit. Market fills apply configurable slippage, spread, and fees. Limit orders wait for the price condition; stop orders wait for the trigger; stop-limit orders trigger before testing their limit. Rejections record a rule and reason for invalid quantity, unavailable/stale price, insufficient cash, excessive order value, duplicate position, prohibited averaging down, liquidity, price range, position count, missing stop, or kill-switch state. Partial fill is represented in the lifecycle for future liquidity modeling; the current deterministic simulator fills an accepted quantity in full.
+
+Position accounting supports increases when explicitly enabled, weighted average price, partial and full exits, realized and unrealized P&L, high/low watermarks, stop loss, target, and trailing stop. The exit sweep is exit-only: it cannot create entries. Portfolio APIs expose cash, equity, exposure by symbol/strategy, P&L, snapshots, drawdown, and equity history.
+
+The paper journal supports notes, mistake tags, rule-following state, filters, and CSV export. Analytics include after-cost P&L, returns, win rate, profit factor, expectancy, payoff, drawdown, holding time, cost drag, grouped results, mistake frequency, and warnings. Strategy reviews recommend `needs_more_data`, `rejected`, or `candidate_for_tiny_live`; recommendations never enable live trading and a persisted status change remains approval-protected.
+
+The local assistant can summarize paper state and prepare paper-order, exit, journal, risk-setting, or strategy-review drafts. It cannot approve its own action, place or close a paper position directly, reset the account directly, call a live broker, or enable live trading.
+
+Run Stage 5 with the project interpreter:
+
+```powershell
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage5_paper_trading.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" main.py
+```
+
+Paper results are simulations, not forecasts or profit guarantees. Fill quality, liquidity, exchange behavior, corporate actions, connectivity, and broker reconciliation differ materially in live markets. Live trading remains disabled.
+
+Verified Stage 5 result: 40 dedicated paper-operations tests and 179 combined Stage 1–5 tests pass with the exact project interpreter.

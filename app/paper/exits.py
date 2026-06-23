@@ -1,0 +1,1 @@
+EXIT_TYPES={"manual_exit","partial_exit","stop_loss_exit","target_exit","trailing_stop_exit","time_based_exit","strategy_exit_signal","max_holding_period_exit","risk_manager_forced_exit","kill_switch_forced_exit","end_of_day_exit_if_configured"}

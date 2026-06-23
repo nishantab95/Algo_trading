@@ -40,6 +40,7 @@ from app.routes.app_search_routes import create_app_search_blueprint
 from app.routes.dashboard_routes import create_dashboard_blueprint
 from app.routes.data_routes import create_data_blueprint
 from app.routes.paper_routes import create_paper_blueprint
+from app.routes.paper_trading_routes import create_stage5_paper_blueprint
 from app.routes.strategy_routes import create_strategy_blueprint
 from app.services.data_service import DataService
 from app.services.backtest_service import BacktestService
@@ -60,6 +61,10 @@ from app.profile.profile_service import TradingProfileService
 from app.rag.indexer import RAGIndexer
 from app.rag.retriever import RAGRetriever
 from app.search.search_service import AppSearchService
+from app.paper.broker import PaperOperationsBroker
+from app.paper.analytics import PaperAnalytics
+from app.paper.reports import PaperReportService
+from app.services.paper_portfolio_service import PaperPortfolioService
 
 PIPELINE_LOCK = threading.Lock()
 
@@ -313,16 +318,20 @@ _RAG_INDEXER = RAGIndexer(_DATABASE, PROJECT_ROOT)
 _RAG_RETRIEVER = RAGRetriever(_DATABASE)
 _APP_SEARCH_SERVICE = AppSearchService(_DATABASE, _RAG_INDEXER)
 _TRADE_HISTORY_SERVICE = TradeHistoryService(_DATABASE)
+_PAPER_OPERATIONS = PaperOperationsBroker(_DATABASE, bot.TRADING_ENGINE._latest_price_from_csv)
+_PAPER_ANALYTICS = PaperAnalytics(_PAPER_OPERATIONS)
+_PAPER_PORTFOLIO = PaperPortfolioService(_PAPER_OPERATIONS)
+_PAPER_REPORTS = PaperReportService(_PAPER_OPERATIONS,_PAPER_ANALYTICS,PROJECT_ROOT)
 _TOOL_REGISTRY = ToolRegistry()
 _READONLY_TOOLS = ReadOnlyTools(_DATABASE, _PROFILE_SERVICE, _DASHBOARD_SERVICE, _APP_SEARCH_SERVICE, _RAG_RETRIEVER,
                                 _STRATEGY_LIBRARY, _COMBO_SERVICE, _BACKTEST_SERVICE, _PAPER_SERVICE,
-                                _TRADE_HISTORY_SERVICE, lambda: _stage1_state_payload())
+                                _TRADE_HISTORY_SERVICE, lambda: _stage1_state_payload(),_PAPER_OPERATIONS,_PAPER_ANALYTICS)
 
 
 def _run_approved_backtest(payload): return _BACKTEST_SERVICE.run(BacktestConfig(**payload)).summary()
 def _approved_paper_order(payload):
     if str(payload.get("mode","PAPER")).upper() != "PAPER": raise PermissionError("Assistant orders are paper-only")
-    return _PAPER_SERVICE.place_order(str(payload["symbol"]),str(payload.get("side","BUY")),int(payload["quantity"]),strategy_id=payload.get("strategy_id"))
+    return _PAPER_OPERATIONS.create_order(payload,approved_by_user=True)
 def _apply_strategy_change(payload):
     changes=payload.get("changes",payload)
     if set(changes)-{"enabled","strategy_id"}: raise ValueError("Stage 4 strategy changes are limited to approval-protected enable/disable")
@@ -361,12 +370,16 @@ _DRAFT_SERVICE = ActionDraftService(_DATABASE, {
     "apply_combo_change": _apply_combo_change,
     "run_backtest": _run_approved_backtest,
     "place_paper_order": _approved_paper_order,
-    "cancel_paper_order": lambda p: _PAPER_SERVICE.cancel_order(str(p["order_id"])),
-    "reset_paper_account": lambda _p: _PAPER_SERVICE.reset(),
+    "cancel_paper_order": lambda p: _PAPER_OPERATIONS.cancel_order(str(p["order_id"])),
+    "reset_paper_account": lambda p: _PAPER_OPERATIONS.reset(p.get("confirm") is True),
     "add_trade_journal_note": _TRADE_HISTORY_SERVICE.annotate,
     "save_screener": lambda p: _save_named_config("saved_screeners",p),
     "update_watchlist": lambda p: _save_named_config("watchlists",p),
     "update_risk_setting": _update_risk_setting,
+    "exit_paper_position": lambda p: _PAPER_OPERATIONS.exit_position(p["position_id"],p.get("quantity"),p.get("reason","manual_exit"),True,"assistant"),
+    "edit_paper_journal": lambda p: _PAPER_OPERATIONS.update_journal(p["trade_id"],p.get("changes",{})),
+    "update_paper_risk_setting": lambda p: _PAPER_OPERATIONS.update_risk_settings(p.get("changes",p)),
+    "update_strategy_paper_status": lambda p: _PAPER_ANALYTICS.promotion_review(p["strategy_id"],p.get("criteria"),True),
 })
 _TOOL_EXECUTOR = ToolExecutor(_TOOL_REGISTRY,_READONLY_TOOLS,_DRAFT_SERVICE)
 _ASSISTANT_SERVICE = AssistantService(_DATABASE,LMStudioClient(),_RAG_RETRIEVER,_TOOL_EXECUTOR,_DRAFT_SERVICE,_PROFILE_SERVICE,_TRADE_HISTORY_SERVICE)
@@ -467,6 +480,7 @@ def create_flask_app():
     from flask import Flask
     app = Flask(__name__, template_folder=os.path.join(PROJECT_ROOT, "templates"), static_folder=os.path.join(PROJECT_ROOT, "static"))
     app.register_blueprint(create_dashboard_blueprint(_stage1_state_payload))
+    app.register_blueprint(create_stage5_paper_blueprint(_PAPER_OPERATIONS,_PAPER_PORTFOLIO,_PAPER_ANALYTICS,_PAPER_REPORTS))
     app.register_blueprint(create_data_blueprint(_REPORT_SERVICE))
     app.register_blueprint(create_strategy_blueprint(_STRATEGY_SERVICE))
     app.register_blueprint(create_paper_blueprint(_PAPER_SERVICE, _run_stage1_paper_scan))

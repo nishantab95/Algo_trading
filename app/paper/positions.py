@@ -1,0 +1,1 @@
+DEFAULT_POSITION_MODE="long_only_paper_equity"

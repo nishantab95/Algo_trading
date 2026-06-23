@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — Stage 5 paper trading and portfolio operations
+
+- Added additive migration 7 for future-ready paper accounts, fills, order events, snapshots, journal, strategy reviews, reset archives, risk settings, and Stage 5 order/position fields.
+- Added an approval-gated, long-only paper broker simulator with market, limit, stop, and stop-limit lifecycle handling.
+- Added slippage, spread, fee, stale-data, liquidity, cash, quantity, exposure, duplicate-position, averaging-down, required-stop, and kill-switch controls with durable risk events.
+- Added weighted-average positions, partial/full exits, stop/target/trailing exit sweep, cash/equity accounting, drawdown, and snapshots.
+- Added completed-trade journal annotations, CSV reports, after-cost analytics, warnings, and configurable strategy paper reviews.
+- Integrated Stage 5 read/draft/approval tools into the Stage 4 assistant without granting direct execution or live access.
+- Added the professional Paper Trading & Portfolio Operations terminal and Stage 5 API surface.
+- Added 40 focused Stage 5 tests using synthetic prices only; the complete Stage 1–5 suite now passes 179 tests with no broker, LM Studio, internet, or live-order dependency.
+- Updated README and technical documentation. Remaining limitations include full-quantity deterministic fills and simplified period/calendar accounting.
+
 ## Unreleased — Stage 4 local assistant and command center
 
 ### Environment and verification
@@ -18,6 +30,7 @@
 - Added approval-protected profile, dashboard, strategy/combo, backtest, paper-order, reset, and trade-note boundaries.
 - Added watchlist and saved-screener persistence through additive migration 6 and included both in local retrieval.
 - Corrected draft-tool action mapping, enforced failed risk checks at approval, and completed deterministic executors for watchlists, screeners, risk settings, and paper-order cancellation.
+- Made app-wide search initialize an empty local index deterministically, removing test-order and first-use dependence on a prior manual RAG reindex.
 - Added integrated Assistant, Search, Profile, and Custom Dashboard workspaces.
 - Made startup maintenance non-blocking, fixed source-aware RAG ranking, and removed pandas resampling warnings.
 

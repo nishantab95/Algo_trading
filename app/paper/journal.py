@@ -1,0 +1,1 @@
+MISTAKE_TAGS={"late_entry","early_exit","no_stop_loss","ignored_signal","revenge_trade","oversized_position","bad_liquidity","chased_breakout","averaged_down","emotional_trade","rule_violation","data_issue"}

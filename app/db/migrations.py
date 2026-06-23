@@ -218,4 +218,100 @@ MIGRATIONS: list[tuple[int, str]] = [
     CREATE INDEX IF NOT EXISTS idx_watchlists_updated ON watchlists(updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_saved_screeners_updated ON saved_screeners(updated_at DESC);
     """),
+    (7, """
+    CREATE TABLE IF NOT EXISTS paper_accounts (
+        id TEXT PRIMARY KEY, account_name TEXT NOT NULL, starting_capital REAL NOT NULL,
+        cash REAL NOT NULL, blocked_cash REAL NOT NULL DEFAULT 0, realized_pnl REAL NOT NULL DEFAULT 0,
+        unrealized_pnl REAL NOT NULL DEFAULT 0, total_equity REAL NOT NULL, buying_power REAL NOT NULL,
+        gross_exposure REAL NOT NULL DEFAULT 0, net_exposure REAL NOT NULL DEFAULT 0,
+        open_positions_count INTEGER NOT NULL DEFAULT 0, daily_pnl REAL NOT NULL DEFAULT 0,
+        weekly_pnl REAL NOT NULL DEFAULT 0, monthly_pnl REAL NOT NULL DEFAULT 0,
+        max_drawdown REAL NOT NULL DEFAULT 0, peak_equity REAL NOT NULL, status TEXT NOT NULL,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    ALTER TABLE paper_orders ADD COLUMN account_id TEXT NOT NULL DEFAULT 'default';
+    ALTER TABLE paper_orders ADD COLUMN strategy_id TEXT;
+    ALTER TABLE paper_orders ADD COLUMN combo_id TEXT;
+    ALTER TABLE paper_orders ADD COLUMN assistant_action_id TEXT;
+    ALTER TABLE paper_orders ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
+    ALTER TABLE paper_orders ADD COLUMN product_type TEXT NOT NULL DEFAULT 'delivery';
+    ALTER TABLE paper_orders ADD COLUMN limit_price REAL;
+    ALTER TABLE paper_orders ADD COLUMN stop_price REAL;
+    ALTER TABLE paper_orders ADD COLUMN estimated_value REAL NOT NULL DEFAULT 0;
+    ALTER TABLE paper_orders ADD COLUMN estimated_costs REAL NOT NULL DEFAULT 0;
+    ALTER TABLE paper_orders ADD COLUMN approval_required INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE paper_orders ADD COLUMN approved_by_user INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE paper_orders ADD COLUMN approved_at TEXT;
+    ALTER TABLE paper_orders ADD COLUMN submitted_at TEXT;
+    ALTER TABLE paper_orders ADD COLUMN filled_at TEXT;
+    ALTER TABLE paper_orders ADD COLUMN cancelled_at TEXT;
+    ALTER TABLE paper_orders ADD COLUMN expires_at TEXT;
+    ALTER TABLE paper_orders ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}';
+    ALTER TABLE paper_positions ADD COLUMN account_id TEXT NOT NULL DEFAULT 'default';
+    ALTER TABLE paper_positions ADD COLUMN strategy_id TEXT;
+    ALTER TABLE paper_positions ADD COLUMN combo_id TEXT;
+    ALTER TABLE paper_positions ADD COLUMN current_price REAL;
+    ALTER TABLE paper_positions ADD COLUMN market_value REAL NOT NULL DEFAULT 0;
+    ALTER TABLE paper_positions ADD COLUMN cost_basis REAL NOT NULL DEFAULT 0;
+    ALTER TABLE paper_positions ADD COLUMN unrealized_pnl_pct REAL NOT NULL DEFAULT 0;
+    ALTER TABLE paper_positions ADD COLUMN realized_pnl REAL NOT NULL DEFAULT 0;
+    ALTER TABLE paper_positions ADD COLUMN lowest_price REAL;
+    ALTER TABLE paper_positions ADD COLUMN stop_loss REAL;
+    ALTER TABLE paper_positions ADD COLUMN target REAL;
+    ALTER TABLE paper_positions ADD COLUMN trailing_stop REAL;
+    ALTER TABLE paper_positions ADD COLUMN entry_reason TEXT;
+    ALTER TABLE paper_positions ADD COLUMN risk_amount REAL NOT NULL DEFAULT 0;
+    ALTER TABLE paper_positions ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
+    ALTER TABLE paper_positions ADD COLUMN closed_at TEXT;
+    ALTER TABLE paper_positions ADD COLUMN entry_order_id INTEGER;
+    CREATE TABLE IF NOT EXISTS paper_fills (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, symbol TEXT NOT NULL,
+        side TEXT NOT NULL, quantity INTEGER NOT NULL, requested_price REAL, fill_price REAL NOT NULL,
+        slippage REAL NOT NULL DEFAULT 0, spread_cost REAL NOT NULL DEFAULT 0, fees REAL NOT NULL DEFAULT 0,
+        total_cost REAL NOT NULL DEFAULT 0, fill_time TEXT NOT NULL, fill_reason TEXT NOT NULL,
+        created_at TEXT NOT NULL, FOREIGN KEY(order_id) REFERENCES paper_orders(id)
+    );
+    CREATE TABLE IF NOT EXISTS paper_order_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, from_status TEXT,
+        to_status TEXT NOT NULL, reason TEXT, context_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS paper_trade_journal (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL, symbol TEXT NOT NULL,
+        strategy_id TEXT, combo_id TEXT, source TEXT NOT NULL, entry_order_id INTEGER,
+        exit_order_id INTEGER, entry_time TEXT, exit_time TEXT, entry_price REAL NOT NULL,
+        exit_price REAL NOT NULL, quantity INTEGER NOT NULL, gross_pnl REAL NOT NULL,
+        costs REAL NOT NULL DEFAULT 0, net_pnl REAL NOT NULL, return_pct REAL NOT NULL,
+        holding_period REAL NOT NULL DEFAULT 0, entry_reason TEXT, exit_reason TEXT,
+        setup_type TEXT, mistake_tags_json TEXT NOT NULL DEFAULT '[]', notes TEXT NOT NULL DEFAULT '',
+        screenshot_path TEXT, confidence TEXT, rule_followed TEXT NOT NULL DEFAULT 'unknown',
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS paper_account_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL, snapshot_time TEXT NOT NULL,
+        cash REAL NOT NULL, position_value REAL NOT NULL, total_equity REAL NOT NULL,
+        realized_pnl REAL NOT NULL, unrealized_pnl REAL NOT NULL, daily_pnl REAL NOT NULL,
+        daily_return_pct REAL NOT NULL, drawdown_pct REAL NOT NULL, open_positions INTEGER NOT NULL,
+        orders_count INTEGER NOT NULL, trades_count INTEGER NOT NULL, costs REAL NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS paper_strategy_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, strategy_id TEXT NOT NULL, account_id TEXT NOT NULL,
+        status TEXT NOT NULL, trades_count INTEGER NOT NULL, days_tested INTEGER NOT NULL,
+        net_pnl REAL NOT NULL, expectancy REAL NOT NULL, profit_factor REAL NOT NULL,
+        max_drawdown REAL NOT NULL, cost_drag REAL NOT NULL, rule_following_rate REAL NOT NULL,
+        promotion_status TEXT NOT NULL, warnings_json TEXT NOT NULL DEFAULT '[]',
+        reviewed_at TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS paper_reset_archives (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL, snapshot_json TEXT NOT NULL,
+        archived_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS paper_risk_settings (
+        account_id TEXT PRIMARY KEY, config_json TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_paper_fills_order ON paper_fills(order_id);
+    CREATE INDEX IF NOT EXISTS idx_paper_journal_strategy ON paper_trade_journal(strategy_id,exit_time);
+    CREATE INDEX IF NOT EXISTS idx_paper_snapshots_time ON paper_account_snapshots(account_id,snapshot_time);
+    CREATE INDEX IF NOT EXISTS idx_paper_order_events_order ON paper_order_events(order_id,created_at);
+    """),
 ]
