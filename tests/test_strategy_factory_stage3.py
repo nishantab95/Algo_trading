@@ -56,6 +56,11 @@ def test_base_strategy_generates_signal():
     strategy=next(x for x in BASE_STRATEGY_CATALOG if x.name=="Close above EMA 9"); assert generate_strategy_signals(frame(),strategy)[strategy.strategy_id].sum()>0
 def test_combo_strategy_generates_signal():
     combo=next(x for x in COMBO_CATALOG if x.status=="active").to_dict(); assert combo["combo_id"] in generate_combo_signals(frame(),combo,{})
+
+def test_combo_not_logic_negates_single_component():
+    combo={"combo_id":"NOT_RSI","name":"Not RSI","components":[{"type":"primitive","ref":"rsi_below","args":[20]}],"logic":{"mode":"not"},"entry":{"direction":"long"}}
+    result=generate_combo_signals(frame(),combo,{})
+    assert result["NOT_RSI"].eq(1).all() and validate_combo(combo)["valid"]
 def test_combo_validation_catches_missing_component(): assert validate_combo({"components":[{"type":"base_strategy","ref":"MISSING"}],"logic":{"mode":"all"}},{"KNOWN"})["errors"]
 def test_explanation_includes_values():
     strategy=next(x for x in BASE_STRATEGY_CATALOG if x.status=="active"); assert "RSI_14=55.000" in explain_signal(strategy,1,{"RSI_14":55},["rsi"],[])["explanation"]

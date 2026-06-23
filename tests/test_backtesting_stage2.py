@@ -147,3 +147,11 @@ def test_robustness_produces_multiple_scenarios(tmp_path):
     db=Database(tmp_path/"robust.sqlite3"); db.initialize(); StrategyRegistry(db).load_builtins()
     data=bars().rename(columns={"TEST_STRAT":"RSI_Oversold"}); cfg=replace(config(strategy_id="RSI_Oversold"))
     result=BacktestService(db).robustness(cfg,data); assert {"normal","slippage_2x","slippage_3x","delayed_entry_1_bar","delayed_exit_1_bar","half_position_size"} <= set(result["scenarios"])
+
+
+def test_backtest_export_contains_complete_file_bundle(tmp_path):
+    from app.backtesting.reports import export_result
+    result=BacktestEngine(config()).run(bars())
+    target=export_result(result,tmp_path)
+    expected={"config.json","summary.json","trades.csv","equity_curve.csv","daily_summary.csv","metrics.json","warnings.json"}
+    assert expected == {path.name for path in target.iterdir()}

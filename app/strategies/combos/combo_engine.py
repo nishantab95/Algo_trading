@@ -8,6 +8,9 @@ def _combine(results:list[pd.Series],components:list[dict],logic:dict):
     frame=pd.concat(results,axis=1).fillna(False); mode=logic.get("mode","all")
     if mode=="all": return frame.all(axis=1)
     if mode=="any": return frame.any(axis=1)
+    if mode=="not":
+        if frame.shape[1] != 1: raise ValueError("Combo not logic requires exactly one component")
+        return ~frame.iloc[:,0]
     weights=np.array([float(item.get("weight",1)) for item in components]); scores=frame.astype(float).mul(weights,axis=1).sum(axis=1)
     if mode=="weighted_vote": return scores>=float(logic.get("threshold",weights.sum()/2))
     if mode=="min_confirmations": return frame.sum(axis=1)>=int(logic.get("threshold",logic.get("minimum",1)))

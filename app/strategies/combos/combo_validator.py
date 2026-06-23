@@ -1,12 +1,13 @@
 from __future__ import annotations
 from app.strategies.primitives.conditions import PRIMITIVES
 
-MODES={"all","any","weighted_vote","min_confirmations","score_threshold"}
+MODES={"all","any","not","weighted_vote","min_confirmations","score_threshold"}
 def validate_combo(combo:dict,base_ids:set[str]|None=None):
     errors=[]; warnings=[]; components=combo.get("components",[]); mode=combo.get("logic",{}).get("mode","all")
     if not combo.get("name"): errors.append("Combo name is required")
     if not components: errors.append("Combo requires at least one component")
     if mode not in MODES: errors.append(f"Unsupported combo logic: {mode}")
+    if mode=="not" and len(components)!=1: errors.append("Combo not logic requires exactly one component")
     for item in components:
         kind=item.get("type"); ref=item.get("ref")
         if kind=="primitive" and ref not in PRIMITIVES: errors.append(f"Unknown primitive: {ref}")
