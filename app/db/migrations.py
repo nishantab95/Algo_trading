@@ -111,4 +111,36 @@ MIGRATIONS: list[tuple[int, str]] = [
     CREATE INDEX IF NOT EXISTS idx_backtest_orders_run ON backtest_orders(run_id, requested_time);
     CREATE INDEX IF NOT EXISTS idx_backtest_equity_run ON backtest_equity_curve(run_id, timestamp);
     """),
+    (3, """
+    CREATE TABLE IF NOT EXISTS strategy_definitions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, strategy_id TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+        category TEXT NOT NULL, subcategory TEXT NOT NULL, direction TEXT NOT NULL, timeframe TEXT NOT NULL,
+        asset_class TEXT NOT NULL, status TEXT NOT NULL, description TEXT NOT NULL, learning_note TEXT NOT NULL,
+        config_json TEXT NOT NULL, parameters_json TEXT NOT NULL, required_columns_json TEXT NOT NULL,
+        tags_json TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS strategy_validation_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, strategy_id TEXT NOT NULL, valid INTEGER NOT NULL,
+        status TEXT NOT NULL, warnings_json TEXT NOT NULL, errors_json TEXT NOT NULL, checked_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS combo_strategy_definitions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, combo_id TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+        category TEXT NOT NULL, description TEXT NOT NULL, logic_json TEXT NOT NULL,
+        components_json TEXT NOT NULL, entry_json TEXT NOT NULL, exit_json TEXT NOT NULL,
+        risk_json TEXT NOT NULL, status TEXT NOT NULL, tags_json TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS strategy_signal_explanations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, strategy_id TEXT NOT NULL, symbol TEXT NOT NULL,
+        signal_time TEXT NOT NULL, signal_value INTEGER NOT NULL, explanation TEXT NOT NULL,
+        context_json TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS strategy_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL UNIQUE, description TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_strategy_definitions_category ON strategy_definitions(category,status,enabled);
+    CREATE INDEX IF NOT EXISTS idx_strategy_validation_id ON strategy_validation_results(strategy_id,checked_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_combo_category ON combo_strategy_definitions(category,status,enabled);
+    """),
 ]

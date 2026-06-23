@@ -16,6 +16,9 @@ from app.backtesting.reports import export_result
 from app.backtesting.walk_forward import run_walk_forward
 from app.core.logging_config import log_event
 from app.db.database import Database, get_database
+from app.strategies.schemas import CatalogStrategy
+from app.strategies.loader import generate_strategy_signals
+from app.strategies.combos.combo_engine import generate_combo_signals
 
 
 class BacktestService:
@@ -25,17 +28,35 @@ class BacktestService:
     def load_data(self, config: BacktestConfig) -> pd.DataFrame:
         if not Path(cfg.CONSOLIDATED_FILE).exists(): raise FileNotFoundError("Processed universe is missing. Run recalibration first.")
         data = pd.read_csv(cfg.CONSOLIDATED_FILE, parse_dates=["Date"])
-        if config.strategy_id not in data.columns: raise ValueError(f"Strategy signal column is unavailable: {config.strategy_id}")
-        # Stage 1 persisted actionable t+1 signals. Recover observation-time t
-        # signals so the explicit Stage 2 execution model owns all delay.
         data = data.sort_values(["Ticker", "Date"])
-        data[config.strategy_id] = data.groupby("Ticker")[config.strategy_id].shift(-1).fillna(0).astype(int)
+        if config.strategy_id in data.columns:
+            # Stage 1 persisted actionable t+1 signals. Recover observation-time t.
+            data[config.strategy_id] = data.groupby("Ticker")[config.strategy_id].shift(-1).fillna(0).astype(int)
+        else:
+            data=self._attach_dynamic_signal(config,data)
+        return data
+
+    def _attach_dynamic_signal(self,config:BacktestConfig,data:pd.DataFrame)->pd.DataFrame:
+        strategy_rows=self.database.query("SELECT config_json,status FROM strategy_definitions WHERE strategy_id=?",(config.strategy_id,))
+        if strategy_rows:
+            if strategy_rows[0]["status"]!="active": raise ValueError(f"Strategy status is {strategy_rows[0]['status']}")
+            data=generate_strategy_signals(data,CatalogStrategy(**json.loads(strategy_rows[0]["config_json"])))
+        else:
+            combo_rows=self.database.query("SELECT * FROM combo_strategy_definitions WHERE combo_id=?",(config.strategy_id,))
+            if not combo_rows: raise ValueError(f"Strategy signal is unavailable: {config.strategy_id}")
+            row=combo_rows[0]
+            if row["status"]!="active": raise ValueError(f"Combo status is {row['status']}")
+            combo={"combo_id":row["combo_id"],"name":row["name"],"components":json.loads(row["components_json"]),"logic":json.loads(row["logic_json"]),"entry":json.loads(row["entry_json"])}
+            base_rows=self.database.query("SELECT strategy_id,config_json FROM strategy_definitions")
+            definitions={item["strategy_id"]:CatalogStrategy(**json.loads(item["config_json"])) for item in base_rows}
+            data=generate_combo_signals(data,combo,definitions)
         return data
 
     def run(self, config: BacktestConfig, data: pd.DataFrame | None = None, persist: bool = True) -> BacktestResult:
-        registry = self.database.query("SELECT strategy_id,name FROM strategy_registry WHERE strategy_id=? UNION SELECT strategy_id,name FROM custom_strategies WHERE strategy_id=?", (config.strategy_id, config.strategy_id))
+        registry = self.database.query("""SELECT strategy_id,name FROM strategy_registry WHERE strategy_id=? UNION SELECT strategy_id,name FROM custom_strategies WHERE strategy_id=? UNION SELECT strategy_id,name FROM strategy_definitions WHERE strategy_id=? UNION SELECT combo_id AS strategy_id,name FROM combo_strategy_definitions WHERE combo_id=?""", (config.strategy_id, config.strategy_id,config.strategy_id,config.strategy_id))
         if not registry: raise ValueError(f"Strategy is not registered: {config.strategy_id}")
         source = data.copy() if data is not None else self.load_data(config)
+        if data is not None and config.strategy_id not in source.columns: source=self._attach_dynamic_signal(config,source)
         created = datetime.now(timezone.utc).isoformat()
         engine = BacktestEngine(config); result = engine.run(source)
         benchmark_metrics, warnings = apply_benchmark(result.equity_curve, source, config.benchmark_symbol, config.initial_capital)

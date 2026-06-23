@@ -3,21 +3,21 @@
 **Project reviewed:** `D:\Git\Algo_trading`  
 **Report date:** 23 June 2026  
 **Audience:** Project owner, new developers, reviewers, and operators  
-**Status:** Code-based technical assessment; not an investment-performance certification
+**Status:** Updated through Stage 3; code-based technical assessment, not an investment-performance certification
 
 ## 1. Executive summary
 
 This project is a local, Python-based algorithmic trading terminal for Indian NSE equities. It brings five activities into one application:
 
 1. Import daily OHLCV market data from a local directory or Yahoo Finance.
-2. Calculate technical indicators and 15 rule-based trading signals.
-3. backtest each signal independently for each stock.
+2. Calculate technical indicators, preserve 15 legacy signals, and generate config-driven catalog signals.
+3. Run either legacy signal-day reports or Stage 2 completed-trade portfolio backtests.
 4. Rank the strategies with a weighted score and choose one winner.
 5. Scan for that winner's latest buy signals and route orders either to an in-memory paper account or Zerodha Kite.
 
 The web dashboard is the operator interface. Flask supplies account, strategy, report, and order data to a single HTML/JavaScript page.
 
-The project is best understood as a **research and paper-trading prototype**. Its components are sensibly separated and the signal code avoids obvious look-ahead by shifting signals one row. However, its backtest is not yet a portfolio or trade-lifecycle simulation, live broker state is not reconciled with local state, and several user-interface actions call the wrong endpoint. It should not currently be considered production-safe for unattended live trading.
+The project is best understood as a **personal research and paper-trading platform under active construction**. Stage 1 added durable state and safer broker boundaries; Stage 2 added a completed-trade, cash-backed portfolio simulator; Stage 3 added a config-driven strategy and combo research factory. The legacy CSV report remains a signal-day diagnostic and must not be confused with Stage 2 portfolio results. Live broker reconciliation and production controls remain incomplete, so the system is not safe for unattended live trading.
 
 The current stored report would select **RSI_Oversold**, with a selector score of approximately **64.106**. That result comes from a report generated on 17 May 2026. The underlying `data/raw` folder and `data/processed_universe.csv` are absent in the reviewed workspace, so the stored performance cannot presently be regenerated from repository-local data.
 
@@ -429,3 +429,166 @@ The project has a clear educational architecture and a useful dashboard shell. I
 
 The largest conceptual gap is that the research engine, strategy selector, and execution engine do not yet describe the same trading system. The largest operational gap is that live orders are not represented by authoritative broker-synchronized state. Closing those two gaps—and fixing the dashboard endpoint mistakes—would move the code from an impressive prototype toward a system whose behavior can be measured and trusted.
 
+## 18. Stage 1–3 architecture update
+
+The original assessment above remains useful for understanding the legacy modules and why they were refactored. The current application now has three explicit layers of capability:
+
+| Stage | Purpose | Authoritative components |
+|---|---|---|
+| Stage 1 | Persistence, paper safety, registry skeleton, API/UI foundation | `app/db`, `app/brokers`, `app/risk`, Stage 1 services/routes |
+| Stage 2 | Completed-trade portfolio research | `app/backtesting`, `BacktestService`, backtest API and Backtesting Lab |
+| Stage 3 | Large config-driven strategy and combo research library | `app/strategies`, strategy/combo services, APIs, Library and Combo Builder |
+
+Live trading remains disabled by default. Stage 2 and Stage 3 are research facilities; neither activates Zerodha execution.
+
+### 18.1 Current research flow
+
+```mermaid
+flowchart LR
+    A[Daily OHLCV + indicators] --> B[Strategy definition]
+    B --> C[Validation]
+    C -->|active and supported| D[Primitive signal engine]
+    C -->|missing dependency| E[needs_data / simulation_only]
+    D --> F[Observation-time signal]
+    G[Combo definition] --> H[Resolve components]
+    H --> I[all / any / weighted / threshold logic]
+    I --> F
+    F --> J[Stage 2 BacktestEngine]
+    J --> K[Completed trades + equity + costs]
+    K --> L[SQLite + reports/backtests/run_id]
+```
+
+The central safety rule is that Stage 3 generates signals but does not simulate execution itself. Every runnable base strategy and combo passes its signal column into the same Stage 2 engine.
+
+### 18.2 Strategy catalogue
+
+The catalog contains the 230 named base research candidates requested for investing/factor, trend, momentum, mean-reversion, breakout, pullback, volume, volatility, price-action, and gap research. Three options research definitions are additionally registered as simulation-only, producing more than 230 total definitions.
+
+Definitions are not made active merely to satisfy the count. The catalog builder assigns one of these statuses:
+
+| Status | Meaning |
+|---|---|
+| `active` | Current daily data and audited primitives can generate the configured signal |
+| `disabled` | Definition or validation is invalid or intentionally unavailable |
+| `needs_data` | Fundamentals, sector context, constituents, pivots, profiles, or another missing dataset is required |
+| `needs_intraday_data` | Rule depends on VWAP, opening range, or intraday timing |
+| `simulation_only` | Registered for learning/simulation but cannot route to execution |
+
+Each `CatalogStrategy` stores:
+
+- stable ID, name, category/subcategory, direction, timeframe, and asset class;
+- status, description, learning note, tags, and unsupported reason;
+- required/optional columns and parameters;
+- config-driven entry, filters, default exits, and risk plan;
+- explanation template and enabled state.
+
+Category modules live under `app/strategies/builtin/`. Legacy 15-strategy metadata is retained separately in `legacy_builtin.py` for compatibility.
+
+### 18.3 Primitive signal engine
+
+`app/strategies/primitives/conditions.py` supplies reusable rules rather than one Python function per strategy. Implemented families include:
+
+- comparisons and ranges;
+- crossover/crossunder and level crosses;
+- moving-average position, slope, and alignment;
+- higher/lower price structure;
+- ROC, RSI, and MACD conditions;
+- ATR percentiles, Bollinger compression/expansion, and volatility contraction;
+- relative volume and volume z-score;
+- inside/outside bars, engulfing candles, hammer, shooting star, doji, and range patterns;
+- prior/rolling weekly/monthly high-low breaks;
+- support bounce, resistance rejection, and moving-average pullback;
+- recursive `all`, `any`, `not`, weighted vote, score threshold, and minimum-confirmation logic.
+
+Dynamic SMA, EMA, ROC, rolling-high/low, gap, range, body, and price-z-score series are derived using current and historical rows only. Primitives that require unavailable data, such as OBV, MFI, or cross-sectional ranks, raise explicit dependency errors instead of returning false signals.
+
+### 18.4 Combo strategy system
+
+The combo registry contains the 120 requested names across trend/momentum, breakout, pullback, mean-reversion, volume/volatility, and factor/portfolio research. A deliberately limited audited subset is active; remaining definitions retain `needs_data` status until their exact component logic and datasets are implemented.
+
+A combo contains:
+
+- component type (`primitive`, `base_strategy`, or contextual filter);
+- component reference, arguments, weight, and required flag;
+- logic mode and threshold;
+- direction, exit rules, risk settings, tags, and status.
+
+Supported logic modes are `all`, `any`, `weighted_vote`, `min_confirmations`, and `score_threshold`. The combo engine evaluates component signals per symbol and creates one observation-time combo signal for Stage 2.
+
+### 18.5 Stage 2 backtesting semantics
+
+The decision-grade engine is separate from legacy `report.py`. It models:
+
+- next-open, next-close, or explicitly research-only same-close execution;
+- cash-secured positions with no leverage;
+- maximum positions, duplicate prevention, integer sizing, and liquidity checks;
+- fixed quantity/value, equal weight, risk-percent, and ATR-risk sizing;
+- stop loss, target, trailing stop, maximum holding, opposite signal, and final forced exit;
+- adverse slippage, spread, configurable Indian-market fee approximations, and cost breakdown;
+- completed trades, rejected orders, daily summaries, equity/drawdown, benchmark comparison, and exports;
+- robustness scenarios and simple fixed-parameter walk-forward folds.
+
+Legacy persisted signals are shifted back to their observation row before Stage 2 applies its explicit execution delay. Config-driven Stage 3 signals are already observation-time signals and are not shifted again.
+
+### 18.6 Database additions
+
+Migration 2 adds completed-backtest tables:
+
+- `backtest_runs`
+- `backtest_trades`
+- `backtest_orders`
+- `backtest_equity_curve`
+- `backtest_daily_summary`
+- `backtest_metric_breakdown`
+
+Migration 3 adds strategy-factory tables:
+
+- `strategy_definitions`
+- `strategy_validation_results`
+- `combo_strategy_definitions`
+- `strategy_signal_explanations`
+- `strategy_categories`
+
+Migrations are additive and run through `Database.initialize()`. Existing Stage 1 paper records and Stage 2 runs are not deleted.
+
+### 18.7 Stage 3 APIs
+
+| Route group | Purpose |
+|---|---|
+| `/api/strategy-library` | Search/list definitions and retrieve full details |
+| `/api/strategy-library/<id>/toggle` | Persist supported strategy enabled state |
+| `/api/strategy-library/<id>/validate` | Check primitives, data, timeframe, and direction |
+| `/api/strategy-library/<id>/backtest` | Generate signal and invoke Stage 2 |
+| `/api/combo-strategies` | List and create persisted combos |
+| `/api/combo-strategies/<id>` | Retrieve or update combo configuration |
+| `/api/combo-strategies/<id>/validate` | Validate components and logic |
+| `/api/combo-strategies/<id>/backtest` | Generate combo signal and invoke Stage 2 |
+| `/api/combo-strategies/<id>/duplicate` | Clone a combo under a new ID |
+| `/api/combo-strategies/<id>/toggle` | Persist enabled state |
+| `/api/strategy-categories` | Category metadata and counts |
+| `/api/strategy-primitives` | Primitive inventory for the builder |
+
+### 18.8 User interface
+
+The terminal now includes:
+
+- **Library:** search, category/direction/status filters, category counts, card/table views, requirements, parameters/config, explanation example, validation, enable/disable, and a Stage 2 shortcut.
+- **Combo builder:** primitive/base selection, JSON arguments, weights, logic/threshold, direction, stops/targets/trailing settings, live config preview, save, validate, duplicate, enable/disable, and backtest shortcut.
+- **Backtests:** launcher, persisted history, completed trades, metric health, warnings, robustness scenarios, and strategy/benchmark equity chart.
+
+### 18.9 Important research limitations
+
+1. A large catalog creates severe multiple-testing and false-discovery risk. Testing hundreds of variants and selecting the best historical curve is not valid evidence of future performance.
+2. `needs_data` definitions are metadata only until their required dataset and audited mapping exist.
+3. Sector, market-regime, portfolio, factor, and cross-sectional strategies need synchronized contextual data beyond per-symbol OHLCV.
+4. Intraday rules cannot be inferred honestly from daily candles.
+5. Options definitions are simulation-only without historical chains, volatility surfaces, contract metadata, liquidity, and expiry handling.
+6. Combo contextual filters remain unavailable until benchmark and sector series are aligned with each asset timeline.
+7. Stage 2 has conservative but simplified daily-bar assumptions; unknown intrabar path, market impact, partial fills, and corporate actions remain limitations.
+8. No catalog entry or combo should be described as profitable without properly controlled out-of-sample evidence—and even then, historical evidence is not a guarantee.
+
+### 18.10 Updated assessment
+
+The project has progressed from a monolithic signal dashboard into a layered research platform: durable state and broker safety in Stage 1, portfolio simulation in Stage 2, and a configurable strategy factory in Stage 3. The strongest architectural improvement is the separation between signal definition and execution simulation.
+
+The next priority should not be adding more strategies. It should be experiment governance: dataset/version manifests, historical-universe membership, correlation and redundancy analysis, false-discovery controls, nested walk-forward evaluation, and reproducible comparisons. Live execution should remain disabled.

@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/static/css/backtests.css"/>
+<link rel="stylesheet" href="/static/css/strategy_library.css"/>
 <style>
 /* ── RESET & TOKENS ─────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -246,6 +247,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
     <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span class="nav-tip">Strategy lab</span>
   </div>
+  <div class="nav-icon" data-tab="library" onclick="switchTab('library',this)"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5z"/><path d="M8 7h8M8 11h6"/></svg><span class="nav-tip">Strategy Library</span></div>
+  <div class="nav-icon" data-tab="combos" onclick="switchTab('combos',this)"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M8 7l3 8M16 7l-3 8"/></svg><span class="nav-tip">Combo Builder</span></div>
   <!-- Orders -->
   <div class="nav-icon" data-tab="orders" onclick="switchTab('orders',this)">
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
@@ -273,6 +276,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
   <div class="tab active" id="tab-overview" onclick="switchTab('overview',null)">Overview</div>
   <div class="tab" id="tab-positions" onclick="switchTab('positions',null)">Positions</div>
   <div class="tab" id="tab-strategy" onclick="switchTab('strategy',null)">Strategy lab</div>
+  <div class="tab" id="tab-library" onclick="switchTab('library',null)">Library</div>
+  <div class="tab" id="tab-combos" onclick="switchTab('combos',null)">Combo builder</div>
   <div class="tab" id="tab-orders" onclick="switchTab('orders',null)">Order desk</div>
   <div class="tab" id="tab-backtests" onclick="switchTab('backtests',null)">Backtests</div>
   <div class="tab" id="tab-reports" onclick="switchTab('reports',null)">Reports</div>
@@ -520,6 +525,41 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 <!-- ════════════════════════════════════════════
      REPORTS
 ═══════════════════════════════════════════════ -->
+<div class="pane" id="pane-library">
+  <div class="sec-hdr"><h2>Strategy Library</h2><span class="badge badge-accent" id="lib-total">230 definitions</span></div>
+  <div class="strategy-workspace">
+    <aside class="strategy-filters card">
+      <div class="card-title">Research filters</div>
+      <div class="field"><label>Search</label><input id="lib-search" placeholder="EMA, breakout, RSI…" oninput="filterStrategyLibrary()"></div>
+      <div class="field"><label>Category</label><select id="lib-category" onchange="filterStrategyLibrary()"><option value="">All categories</option></select></div>
+      <div class="field"><label>Direction</label><select id="lib-direction" onchange="filterStrategyLibrary()"><option value="">All directions</option><option>long</option><option>short</option><option>long_short</option></select></div>
+      <div class="field"><label>Status</label><select id="lib-status" onchange="filterStrategyLibrary()"><option value="">All statuses</option><option>active</option><option>disabled</option><option>needs_data</option><option>needs_intraday_data</option><option>simulation_only</option></select></div>
+      <div id="lib-counts" class="lib-counts"></div>
+    </aside>
+    <section><div class="lib-toolbar"><span id="lib-visible" class="bt-status">Loading…</span><button class="btn btn-sm" onclick="setLibraryView('cards')">Cards</button><button class="btn btn-sm" onclick="setLibraryView('table')">Table</button></div><div id="strategy-library-grid" class="strategy-library-grid"><div class="empty">Loading strategy definitions…</div></div></section>
+  </div>
+  <div class="strategy-detail card" id="strategy-detail" hidden><div class="sec-hdr"><div class="card-title" id="strategy-detail-title">Strategy details</div><button class="btn btn-sm" onclick="closeStrategyDetail()">Close</button></div><div id="strategy-detail-body"></div></div>
+</div>
+
+<div class="pane" id="pane-combos">
+  <div class="sec-hdr"><h2>Combo Strategy Builder</h2><span class="badge badge-accent">120 catalogued combos</span></div>
+  <div class="combo-layout">
+    <div class="card">
+      <div class="card-title">Visual logic configuration</div>
+      <div class="g2"><div class="field"><label>Combo name</label><input id="combo-name" value="My research combo"></div><div class="field"><label>Category</label><input id="combo-category" value="custom_combo"></div></div>
+      <div class="field"><label>Description</label><input id="combo-description" value="A user-defined research hypothesis."></div>
+      <div class="g3"><div class="field"><label>Logic</label><select id="combo-mode"><option>all</option><option>any</option><option>weighted_vote</option><option>min_confirmations</option><option>score_threshold</option></select></div><div class="field"><label>Threshold</label><input id="combo-threshold" type="number" value="2" step="0.1"></div><div class="field"><label>Direction</label><select id="combo-direction"><option>long</option><option>short</option></select></div></div>
+      <div class="field"><label>Add primitive</label><div class="btn-row"><select id="combo-primitive"></select><input id="combo-args" placeholder='Arguments JSON, e.g. ["EMA_9","EMA_21"]'><button class="btn" onclick="addComboPrimitive()">Add</button></div></div>
+      <div class="field"><label>Add base strategy</label><div class="btn-row"><select id="combo-base-strategy"></select><button class="btn" onclick="addComboBaseStrategy()">Add</button></div></div>
+      <div id="combo-components" class="combo-components"><div class="empty">Add at least one component.</div></div>
+      <div class="g3"><div class="field"><label>Stop %</label><input id="combo-stop" type="number" value="5"></div><div class="field"><label>Target %</label><input id="combo-target" type="number" value="15"></div><div class="field"><label>Trailing %</label><input id="combo-trailing" type="number" value="7"></div></div>
+      <div class="btn-row"><button class="btn" onclick="validateDraftCombo()">Validate</button><button class="btn btn-primary" onclick="saveDraftCombo()">Save combo</button><span id="combo-status" class="bt-status">Draft</span></div>
+    </div>
+    <div class="card"><div class="card-title">Config preview</div><pre id="combo-preview" class="combo-preview">{}</pre></div>
+  </div>
+  <div class="card" style="overflow-x:auto"><div class="card-title">Combo registry</div><table class="tbl"><thead><tr><th>Name</th><th>Category</th><th>Logic</th><th>Components</th><th>Status</th><th>Enabled</th><th>Actions</th></tr></thead><tbody id="combo-table"><tr><td colspan="7" class="empty">Loading combos…</td></tr></tbody></table></div>
+</div>
+
 <div class="pane" id="pane-backtests">
   <div class="sec-hdr"><h2>Decision-grade Backtesting Lab</h2><span class="badge badge-accent">COMPLETED TRADES · CASH BACKED</span></div>
   <div class="bt-warning">Stage 2 simulations include explicit fills, capital, costs and exits. They are not forecasts and are not comparable to legacy signal-day reports.</div>
@@ -1212,6 +1252,8 @@ function switchTab(name, iconEl) {
   else document.querySelector(`.nav-icon[data-tab="${name}"]`)?.classList.add('active');
   if (name === 'reports') loadReports();
   if (name === 'backtests') loadBacktests();
+  if (name === 'library') loadStrategyLibrary();
+  if (name === 'combos') loadComboBuilder();
 }
 
 /* ── HELPERS ───────────────────────────────────── */
@@ -1241,6 +1283,8 @@ function toast(msg, type='info') {
 <!-- Flask injects initial state here -->
 <script id="__initial_state__" type="application/json">{{ initial_state | safe }}</script>
 <script src="/static/js/backtests.js"></script>
+<script src="/static/js/strategy_library.js"></script>
+<script src="/static/js/combo_builder.js"></script>
 
 </body>
 </html>

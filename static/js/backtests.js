@@ -29,6 +29,11 @@ async function loadBacktests() {
   const select = document.getElementById('bt-strategy');
   if (select && !select.options.length) {
     (STATE.strategies || []).filter(x=>x.enabled).forEach(strategy => select.add(new Option(strategy.label, strategy.name)));
+    try {
+      const [library,combos]=await Promise.all([btApi('/api/strategy-library?status=active'),btApi('/api/combo-strategies')]);
+      library.data.forEach(strategy=>select.add(new Option(`Library · ${strategy.name}`,strategy.strategy_id)));
+      combos.data.filter(combo=>combo.status==='active').forEach(combo=>select.add(new Option(`Combo · ${combo.name}`,combo.combo_id)));
+    } catch(error) { toast('Strategy catalog: '+error.message,'err'); }
   }
   try {
     const payload = await btApi('/api/backtests'); const body = document.getElementById('bt-history'); const rows = payload.data || [];

@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 
 from app.db.database import Database, get_database
-from app.strategies.builtin import BUILTIN_STRATEGIES
+from app.strategies.legacy_builtin import BUILTIN_STRATEGIES
 
 
 class StrategyRegistry:

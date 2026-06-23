@@ -30,12 +30,16 @@ from app.core.config import SETTINGS
 from app.core.logging_config import log_event
 from app.routes.broker_routes import create_broker_blueprint
 from app.routes.backtest_routes import create_backtest_blueprint
+from app.routes.strategy_library_routes import create_strategy_library_blueprint
+from app.routes.combo_strategy_routes import create_combo_strategy_blueprint
 from app.routes.dashboard_routes import create_dashboard_blueprint
 from app.routes.data_routes import create_data_blueprint
 from app.routes.paper_routes import create_paper_blueprint
 from app.routes.strategy_routes import create_strategy_blueprint
 from app.services.data_service import DataService
 from app.services.backtest_service import BacktestService
+from app.services.strategy_library_service import StrategyLibraryService
+from app.services.combo_strategy_service import ComboStrategyService
 from app.services.paper_trading_service import PaperTradingService
 from app.services.report_service import ReportService
 
@@ -281,6 +285,10 @@ _DATA_SERVICE = DataService()
 _REPORT_SERVICE = ReportService(_DATABASE)
 _PAPER_SERVICE = PaperTradingService(bot.TRADING_ENGINE._latest_price_from_csv, _DATABASE)
 _BACKTEST_SERVICE = BacktestService(_DATABASE)
+_STRATEGY_LIBRARY = StrategyLibraryService(_DATABASE, _BACKTEST_SERVICE)
+_STRATEGY_LIBRARY.initialize()
+_COMBO_SERVICE = ComboStrategyService(_DATABASE, _STRATEGY_LIBRARY, _BACKTEST_SERVICE)
+_COMBO_SERVICE.initialize()
 
 
 def _stage1_state_payload() -> dict:
@@ -383,6 +391,8 @@ def create_flask_app():
     app.register_blueprint(create_paper_blueprint(_PAPER_SERVICE, _run_stage1_paper_scan))
     app.register_blueprint(create_broker_blueprint(_DATABASE))
     app.register_blueprint(create_backtest_blueprint(_BACKTEST_SERVICE))
+    app.register_blueprint(create_strategy_library_blueprint(_STRATEGY_LIBRARY, _BACKTEST_SERVICE))
+    app.register_blueprint(create_combo_strategy_blueprint(_COMBO_SERVICE, _BACKTEST_SERVICE))
 
     @app.get("/api/get_reports")
     def get_reports():

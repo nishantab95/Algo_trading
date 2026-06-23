@@ -70,6 +70,45 @@ Prioritize completed-trade sample size, expectancy, drawdown, exposure, cost dra
 
 The robustness endpoint reruns normal, 2×/3× slippage, delayed entry, delayed exit, half sizing, and split-window scenarios. Warnings identify fragile results such as low trade count, negative expectancy, excessive drawdown, benchmark underperformance, or an edge that disappears under 2× slippage.
 
+## Stage 3 strategy research factory
+
+Stage 3 adds a config-driven library of more than 230 base research definitions and 120 combo definitions. The count describes catalog coverage—not quality or profitability. Strategies supported by current daily OHLCV and technical columns can generate observation-time signals for the Stage 2 engine. Definitions requiring fundamentals, historical constituents, sector mappings, intraday bars, pivots, market profile, pairs, or option chains remain visible with `needs_data`, `needs_intraday_data`, or `simulation_only` status.
+
+### Strategy registry model
+
+Each definition stores metadata, data requirements, parameters, entry/filter logic, default exits, risk settings, tags, learning notes, and an explanation template. Reusable primitives evaluate comparisons, crossovers, trend structure, momentum, volatility, volume, price action, support/resistance, and logical combinations without future-row access.
+
+Use the **Library** workspace to search and filter definitions, inspect requirements and JSON logic, validate a candidate, enable supported definitions, and open one in the Stage 2 Backtesting Lab.
+
+### Add a base strategy
+
+Add a `CatalogStrategy` configuration through the appropriate module under `app/strategies/builtin/`, using primitives exposed by `/api/strategy-primitives`. Required columns must be declared. Run validation and synthetic tests before marking it active. Never mark an unavailable-data idea active merely to increase the count.
+
+```python
+CatalogStrategy(
+    strategy_id="TREND_EMA_009_021",
+    name="EMA 9/21 Bullish Crossover",
+    category="trend",
+    subcategory="ema_crossover",
+    direction="long",
+    entry={"primitive": "crossover_above", "args": ["EMA_9", "EMA_21"]},
+    filters={"primitive": "greater_than", "args": ["Close", "EMA_200"]},
+)
+```
+
+### Combo Builder
+
+The **Combo builder** workspace combines primitives or base strategies using `all`, `any`, `weighted_vote`, `min_confirmations`, or `score_threshold`. Each component can carry a weight. Saved combos include exits and risk settings, persist in SQLite, and must validate before they can be enabled or passed into Stage 2.
+
+```text
+combo config → validate components → generate component signals
+→ combine observation-time signals → Stage 2 backtest → persisted reports
+```
+
+Validation checks metadata, primitive names, entry logic, required columns, timeframe, direction compatibility, and component references. Unsupported definitions are not silently skipped. Their status and reason appear in the API and UI. Simulation-only options definitions cannot route to paper or live execution.
+
+Many research candidates increase multiple-testing risk. A large library makes disciplined out-of-sample controls more important; it does not make historical results more trustworthy by itself.
+
 ## Install
 
 Python 3.10+ is recommended.
@@ -140,7 +179,10 @@ Live trading is disabled by default and the Stage 1 broker route refuses activat
 - Walk-forward support evaluates fixed configurations across folds; it does not optimize parameters.
 - Corporate actions, historical index membership, delistings, market impact, partial fills, and exchange holiday calendars need deeper modeling.
 - Backtest profit never guarantees paper or live profit.
+- Catalogued strategies with unavailable dependencies cannot generate signals until those datasets exist.
+- Combo market and sector filters remain unavailable without synchronized context data.
+- Bulk-testing a large catalog without false-discovery controls invites spurious winners.
 
 ## Roadmap
 
-Stage 3 should build research orchestration around this engine: versioned datasets, historical-universe membership, richer data-quality gates, experiment comparison, parameter-search controls with nested out-of-sample evaluation, and strategy-combination research. Live execution should remain disabled.
+Stage 4 should add experiment governance: versioned datasets, historical-universe membership, false-discovery controls, nested walk-forward evaluation, strategy-correlation analysis, and reproducible experiment comparison. Live execution should remain disabled.
