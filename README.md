@@ -185,7 +185,11 @@ Example:
 
 ```powershell
 & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_backtesting_stage2.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_strategy_factory_stage3.py -q
 & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage4_assistant_rag.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage5_paper_trading.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage6_research_lab.py -q
 ```
 
 Tests cover schema initialization, persistence, reset, ATR sizing, registry loading, custom rules, duplicate risk, broker fail-closed behavior, API envelopes, and corrected UI actions.
@@ -201,7 +205,7 @@ Verify the config-driven catalog counts without starting Flask:
 & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "from app.strategies.combos.combo_registry import load_combo_strategy_catalog; print('combo_count=', len(load_combo_strategy_catalog()))"
 ```
 
-The repository currently contains 233 base definitions (230 named equity/portfolio research definitions plus three options simulations) and 120 combo definitions by static source inspection. These counts must also be confirmed by the commands above in the installed project environment.
+The repository currently contains 233 base definitions (230 named equity/portfolio research definitions plus three options simulations) and 120 combo definitions. The acceptance audit also confirmed both counts at runtime with the commands above.
 
 Runtime checks confirmed 233 base strategies and 120 combos. Before Stage 4, 95 tests passed; after the Stage 4 safety audit, the full suite passed with 139 tests (44 dedicated Stage 4 tests), including a real `main.py` HTTP startup test.
 
@@ -227,7 +231,7 @@ Live trading is disabled by default and the Stage 1 broker route refuses activat
 - Bulk-testing a large catalog without false-discovery controls invites spurious winners.
 - Keyword RAG is transparent and lightweight but less semantic than embedding retrieval.
 - LM Studio must run separately for generated answers; deterministic app search works offline.
-- Trade-history notes/tags are Stage 4 annotations, not yet a full behavioral trade journal.
+- Stage 4 trade-history annotations and the Stage 5 behavioral journal are separate views over their respective persisted records.
 - Assistant actions are local approval drafts; the app currently has no multi-user authentication boundary.
 
 ## Roadmap
@@ -259,3 +263,41 @@ Run Stage 5 with the project interpreter:
 Paper results are simulations, not forecasts or profit guarantees. Fill quality, liquidity, exchange behavior, corporate actions, connectivity, and broker reconciliation differ materially in live markets. Live trading remains disabled.
 
 Verified Stage 5 result: 40 dedicated paper-operations tests and 179 combined Stage 1–5 tests pass with the exact project interpreter.
+
+## Stage 6 strategy validation and walk-forward research lab
+
+Stage 6 asks whether a rule-based strategy remains stable after honest validation—not which historical curve looks best. It persists immutable research experiments and delegates every simulated trade to the existing Stage 2 completed-trade `BacktestService`; it does not contain a second backtester, predictive ML model, or live-order path.
+
+Each experiment saves the strategy/combo, universe, symbols, dates, execution/cost assumptions, sizing, risk settings, parameter grid, validation configuration, and status. A reproducibility manifest records symbol/date coverage, row counts, missing/stale/skipped symbols, data/config hashes, code version, and warnings for survivorship, corporate actions, and unavailable historical index membership.
+
+Supported train/test modes are fixed-date, percentage, rolling-time, and final holdout. In-sample, unseen out-of-sample, and full-period metrics are reported separately. Anchored and rolling/expanding walk-forward folds enforce `train_end < test_start`; failed folds are persisted rather than silently dropped.
+
+Parameter sweeps rank explicit grids and penalize isolated optima. Robustness scenarios stress slippage, spread, fees, entry delay, fill quality, liquidity, skipped trades, universe size, regimes, and drawdown periods through Stage 2. Symbol analysis exposes coverage and contributor concentration. Regime analysis never invents benchmark evidence: when audited benchmark history is unavailable it returns an explicit unavailable warning.
+
+Correlation/redundancy analysis measures deterministic signal/equity correlation and overlap. False-discovery warnings account for the large strategy catalog, adaptive selection, low trade counts, unreliable/unavailable p-values, and missing OOS confirmation. The conservative evidence score combines OOS performance, walk-forward and parameter stability, cost robustness, drawdown, trade count, coverage, regime availability, multiple-testing risk, and optional paper alignment.
+
+Recommendations are limited to `reject`, `needs_more_data`, `continue_research`, `paper_test_candidate`, or the research-only label `tiny_live_candidate_later`. They cannot enable live trading. The user must explicitly approve a persisted research label; the assistant can explain evidence and draft an experiment or recommendation but cannot alter results or approve itself.
+
+Run Stage 6 with the exact project interpreter:
+
+```powershell
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage6_research_lab.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" main.py
+```
+
+Validation results remain conditional on data quality and simulation assumptions. They do not prove profitability or authorize live trading.
+
+## Stage 1–6 capability and operating guide
+
+- **Foundation:** SQLite migrations and durable paper state initialize automatically. The default mode is PAPER and live trading remains disabled.
+- **Backtesting Lab:** choose a strategy, symbols, dates, execution timing, costs, sizing, and risk assumptions; run the completed-trade Stage 2 engine and inspect trades, equity, drawdown, benchmark, and exports.
+- **Strategy Library:** browse all supported and unsupported definitions. `needs_data`, `needs_intraday_data`, and `simulation_only` entries remain visible but cannot emit fake active signals.
+- **Combo Builder:** compose validated base strategies and primitives, then route combo backtests through the same Stage 2 engine.
+- **Assistant, RAG, and Search:** reindex local documentation and platform records, search deterministically, or use LM Studio when available. Mutating assistant tools create persisted drafts that require explicit user approval.
+- **Paper Trading Terminal:** review and approve paper-only orders, positions, exits, portfolio accounting, journal entries, snapshots, analytics, and reports. Exit sweeps never create entries.
+- **Research Lab:** save reproducible experiments, run train/test and walk-forward validation, inspect parameter stability and applied robustness scenarios, and draft approval-gated research decisions.
+
+Acceptance result on 2026-06-24: 222 tests passed with Python 3.10.11 from the exact project venv. Flask served the dashboard and all Stage 1–6 API/static-asset smoke checks passed. Pixel-level browser interaction and browser-console inspection still require a manual check because the in-app browser could not attach during the audit.
+
+This software provides historical simulation and paper-trading research only. It offers no profit guarantee, and no Stage 1–6 result authorizes live trading.

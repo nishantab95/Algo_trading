@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — Stage 1–6 stabilization and acceptance audit
+
+- Backed up the dirty worktree and live SQLite database before stabilization checks; no user changes were discarded.
+- Verified the exact project interpreter as Python 3.10.11, installed requirements, and confirmed 233 unique base strategies and 120 unique combos.
+- Fixed Stage 6 robustness execution so deterministic skipped-signal and peak-to-trough stress scenarios transform the actual Stage 2 input; unavailable benchmark-regime and expanded-universe evidence is now labeled unavailable and excluded from scoring.
+- Fixed Stage 5 paper-buy reservations to include adverse fill movement and fees before approval, preventing near-all-cash orders from failing inside the fill transaction.
+- Added the required `details` object to Stage 2 API failure envelopes.
+- Added migration idempotency, dashboard/state, same-close research labeling, opposite-signal exit, insufficient-cash, positive benchmark, API failure, cost-inclusive paper approval, and robustness regression tests.
+- Final full suite: 222 passed. Focused suites and live localhost UI/API/static-asset checks also passed during the audit.
+- Updated README and the technical report with exact commands, acceptance evidence, limitations, and the Stage 7 gate.
+- Remaining manual check: pixel-level interaction, navigation clicks, and browser-console inspection because the in-app browser control surface could not attach.
+
+## Unreleased — Stage 6 validation and walk-forward research lab
+
+- Added additive migration 8 for experiments, reproducibility manifests, walk-forward folds, parameter sweeps, robustness/regime/symbol evidence, correlations, summaries, and research decisions.
+- Added fixed/percentage/rolling/final train-test splits and anchored/rolling/expanding unseen-period validation over the existing Stage 2 backtester.
+- Added parameter stability and isolated-optimum warnings, cost/fill/delay/liquidity/universe robustness scenarios, and failed-fold persistence.
+- Added fail-closed regime analysis, symbol coverage/concentration evidence, correlation/redundancy scoring, and false-discovery warnings.
+- Added conservative evidence scoring and approval-only reject/continue/paper-test/tiny-live-later research labels; no live enablement exists.
+- Added research CSV/Markdown reports, APIs, assistant read/draft boundaries, and the professional Research Lab UI.
+- Added 31 focused Stage 6 tests; the complete Stage 1–6 suite passes 210 tests with synthetic/local data only.
+- Documented limitations: unavailable unaudited regime evidence, placeholder trade-drop/stress scenarios, and strategy-definition parameter regeneration boundaries.
+
 ## Unreleased — Stage 5 paper trading and portfolio operations
 
 - Added additive migration 7 for future-ready paper accounts, fills, order events, snapshots, journal, strategy reviews, reset archives, risk settings, and Stage 5 order/position fields.

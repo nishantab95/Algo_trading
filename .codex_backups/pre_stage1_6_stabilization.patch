@@ -1,0 +1,151 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 77f4445..e16fa18 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,16 @@
+ # Changelog
+ 
++## Unreleased — Stage 6 validation and walk-forward research lab
++
++- Added additive migration 8 for experiments, reproducibility manifests, walk-forward folds, parameter sweeps, robustness/regime/symbol evidence, correlations, summaries, and research decisions.
++- Added fixed/percentage/rolling/final train-test splits and anchored/rolling/expanding unseen-period validation over the existing Stage 2 backtester.
++- Added parameter stability and isolated-optimum warnings, cost/fill/delay/liquidity/universe robustness scenarios, and failed-fold persistence.
++- Added fail-closed regime analysis, symbol coverage/concentration evidence, correlation/redundancy scoring, and false-discovery warnings.
++- Added conservative evidence scoring and approval-only reject/continue/paper-test/tiny-live-later research labels; no live enablement exists.
++- Added research CSV/Markdown reports, APIs, assistant read/draft boundaries, and the professional Research Lab UI.
++- Added 31 focused Stage 6 tests; the complete Stage 1–6 suite passes 210 tests with synthetic/local data only.
++- Documented limitations: unavailable unaudited regime evidence, placeholder trade-drop/stress scenarios, and strategy-definition parameter regeneration boundaries.
++
+ ## Unreleased — Stage 5 paper trading and portfolio operations
+ 
+ - Added additive migration 7 for future-ready paper accounts, fills, order events, snapshots, journal, strategy reviews, reset archives, risk settings, and Stage 5 order/position fields.
+diff --git a/README.md b/README.md
+index 6070074..3d97451 100644
+--- a/README.md
++++ b/README.md
+@@ -259,3 +259,27 @@ Run Stage 5 with the project interpreter:
+ Paper results are simulations, not forecasts or profit guarantees. Fill quality, liquidity, exchange behavior, corporate actions, connectivity, and broker reconciliation differ materially in live markets. Live trading remains disabled.
+ 
+ Verified Stage 5 result: 40 dedicated paper-operations tests and 179 combined Stage 1–5 tests pass with the exact project interpreter.
++
++## Stage 6 strategy validation and walk-forward research lab
++
++Stage 6 asks whether a rule-based strategy remains stable after honest validation—not which historical curve looks best. It persists immutable research experiments and delegates every simulated trade to the existing Stage 2 completed-trade `BacktestService`; it does not contain a second backtester, predictive ML model, or live-order path.
++
++Each experiment saves the strategy/combo, universe, symbols, dates, execution/cost assumptions, sizing, risk settings, parameter grid, validation configuration, and status. A reproducibility manifest records symbol/date coverage, row counts, missing/stale/skipped symbols, data/config hashes, code version, and warnings for survivorship, corporate actions, and unavailable historical index membership.
++
++Supported train/test modes are fixed-date, percentage, rolling-time, and final holdout. In-sample, unseen out-of-sample, and full-period metrics are reported separately. Anchored and rolling/expanding walk-forward folds enforce `train_end < test_start`; failed folds are persisted rather than silently dropped.
++
++Parameter sweeps rank explicit grids and penalize isolated optima. Robustness scenarios stress slippage, spread, fees, entry delay, fill quality, liquidity, skipped trades, universe size, regimes, and drawdown periods through Stage 2. Symbol analysis exposes coverage and contributor concentration. Regime analysis never invents benchmark evidence: when audited benchmark history is unavailable it returns an explicit unavailable warning.
++
++Correlation/redundancy analysis measures deterministic signal/equity correlation and overlap. False-discovery warnings account for the large strategy catalog, adaptive selection, low trade counts, unreliable/unavailable p-values, and missing OOS confirmation. The conservative evidence score combines OOS performance, walk-forward and parameter stability, cost robustness, drawdown, trade count, coverage, regime availability, multiple-testing risk, and optional paper alignment.
++
++Recommendations are limited to `reject`, `needs_more_data`, `continue_research`, `paper_test_candidate`, or the research-only label `tiny_live_candidate_later`. They cannot enable live trading. The user must explicitly approve a persisted research label; the assistant can explain evidence and draft an experiment or recommendation but cannot alter results or approve itself.
++
++Run Stage 6 with the exact project interpreter:
++
++```powershell
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage6_research_lab.py -q
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" main.py
++```
++
++Validation results remain conditional on data quality and simulation assumptions. They do not prove profitability or authorize live trading.
+diff --git a/TECHNICAL_REPORT.md b/TECHNICAL_REPORT.md
+index e6a428b..341504e 100644
+--- a/TECHNICAL_REPORT.md
++++ b/TECHNICAL_REPORT.md
+@@ -828,3 +828,56 @@ The post-change Flask process served `/` with HTTP 200 using the exact project i
+ Interactive browser attachment was unavailable in the execution environment, so pixel-level visual interaction remains a manual acceptance check. Automated HTML composition, live asset/API delivery, lifecycle behavior, safety boundaries, and persistence all pass.
+ 
+ **Stage 5 status: PASS. Stage 1–5 are stable enough to proceed to Stage 6, while live trading remains disabled.**
++
++## Stage 6 — Strategy Validation and Walk-Forward Research Lab
++
++### Environment, architecture, and experiment model
++
++Stage 6 was implemented with `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe` (Python 3.10.11). The pre-change Stage 1–5 suite passed 179 tests and all existing workspaces served successfully. `app/research_lab` is an orchestration and evidence layer over the existing Stage 2 `BacktestService.run`; it does not implement another execution engine.
++
++Migration 8 adds immutable experiment configs, manifests, walk-forward folds, parameter results, robustness scenarios, regime and symbol results, correlations, validation summaries, and approval-gated research decisions. Experiment IDs are unique and older results are not overwritten. Statuses cover draft, queued, running, completed, failed, cancelled, and archived.
++
++### Data manifests and train/test methodology
++
++Every run stores symbols, date range, rows per symbol, missing/stale/skipped data, data/config hashes, code version, and warnings. Validation checks OHLCV presence, duplicate dates, non-positive prices, negative volume, minimum rows, staleness, survivorship, unaudited corporate actions, data source, and missing historical membership. Warnings remain visible even when execution can proceed.
++
++Fixed-date, percentage, rolling-time, and final-holdout splits report in-sample, unseen out-of-sample, and full-period metrics separately. A positive train result with non-positive test performance produces an overfit warning.
++
++### Walk-forward and parameter stability
++
++Anchored and rolling/expanding folds guarantee that the test period begins after training ends. Train-only parameter selection is passed into the unseen fold. Failed folds are stored with their error. Summaries report completed/failed folds, average/median OOS return, positive-fold rate, worst drawdown, profit factor, expectancy, OOS stability, and pass/fail.
++
++Explicit parameter grids are expanded deterministically. Train/test/full metrics, rank, stability, and isolated-best warnings are persisted. Stage 2 execution parameters such as stops, targets, trailing exits, sizing, and cost assumptions are applied directly. Strategy-indicator threshold grids that require regenerated catalog definitions remain limited to configurations supported by the existing signal generator.
++
++### Robustness, regimes, symbols, and redundancy
++
++Robustness scenarios include base, slippage/spread/fee increases, delayed/worse entry, reduced liquidity, deterministic skipped-trade placeholder, regime filter placeholder, smaller/larger universe, and drawdown stress. All executable scenarios call Stage 2. Results record metrics, pass/fail, and warnings when small assumption changes destroy performance.
++
++Symbol evidence reports trades, net P&L, return, win rate, profit factor, expectancy, contribution, coverage, skipped symbols, and concentration warnings. Regime analysis fails closed: without aligned benchmark history it records `unavailable` rather than fabricating bull/bear/volatility evidence. Signal/equity correlation and overlap produce a redundancy score and keep/merge/disable/test recommendation.
++
++### False discovery, evidence score, and decisions
++
++The false-discovery control warns when a top result is selected from the 353-definition catalog, trade count is low, OOS confirmation is absent, or p-values are unavailable/unreliable. A lightweight Benjamini–Hochberg helper is included for externally supplied p-values.
++
++The evidence score conservatively combines OOS performance, walk-forward stability, parameter stability, robustness to costs, drawdown, trade count, symbol coverage, regime availability, cost sensitivity, multiple-testing risk, and optional paper alignment. Bad OOS and unstable parameters receive explicit penalties. Recommendations are research labels only and require a persisted user approval. Neither the app nor assistant can promote to live or enable trading.
++
++### Assistant, API, reports, and UI
++
++Stage 4 tools can read experiments, folds, scenarios, and decisions, and draft experiment/decision actions. The assistant cannot alter evidence or approve itself. Research APIs cover experiment CRUD/run/cancel/summary, walk-forward, sweeps, robustness, regimes, symbols, correlations, decisions, and exports using the shared response envelope.
++
++The Research Lab UI contains the launcher, validation cards, fold table, parameter and scenario evidence, regime/symbol panels, redundancy panel, false-discovery warning, conservative recommendation, experiment history, and assistant explanation boundary. Eight CSV tables and an experiment-specific Markdown validation report are supported.
++
++### Limitations
++
++Regime evidence requires audited benchmark data and is currently unavailable when that data is absent. Some robustness scenarios are conservative configuration placeholders until Stage 2 supports trade dropping and explicit stress-period selection. Parameter sweeps apply execution/configuration fields supported by Stage 2; arbitrary indicator threshold mutation requires corresponding strategy-definition signal regeneration. Correlation endpoints require supplied aligned series. These limitations are surfaced rather than hidden.
++
++### Verification status
++
++- Dedicated Stage 6 suite: `31 passed`.
++- Full Stage 1–6 suite: `210 passed`.
++- Additive migrations: versions 1–8.
++- Dependency set: unchanged; no ML/DL, optimizer, vector database, or second backtester added.
++
++**Stage 6 safety status:** live trading remains disabled, failed evidence remains visible, and research-label changes remain user-approved.
++
++Post-change live HTTP verification served the Research Lab, explicit Validation Summary, walk-forward, parameter stability, robustness, regime, symbol, redundancy, false-discovery, evidence/decision, and assistant panels. Research and legacy Stage 1–5 assets/APIs returned HTTP 200. Interactive pixel-level browser review remains manual because the in-app browser could not attach.
+diff --git a/requirements.txt b/requirements.txt
+index 1ed6eb0..10c369e 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -12,4 +12,4 @@ pytest>=8.0.0
+ # C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe
+ # Install with:
+ # & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip install -r requirements.txt
+-# Stages 4–5 use standard-library HTTP/CSV plus SQLite; no heavy ML/vector or paper-broker dependency is required.
++# Stages 4–6 use standard-library HTTP/CSV/statistics plus SQLite; no heavy ML/vector/optimizer dependency is required.
+diff --git a/templates/index.html b/templates/index.html
+index c833560..bd312aa 100644
+--- a/templates/index.html
++++ b/templates/index.html
+@@ -660,7 +660,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
+   <div class="research-warning">This lab rejects fragile evidence. It does not find “winning” strategies, enable live trading, or replace Stage 2 execution.</div>
+   <div class="research-layout">
+     <aside class="card research-launcher"><div class="card-title">Experiment Launcher</div><div class="field"><label>Name</label><input id="research-name" value="Honest validation"></div><div class="field"><label>Strategy / combo ID</label><input id="research-strategy" placeholder="RSI_OVERSOLD"></div><div class="field"><label>Symbols</label><input id="research-symbols" value="INFY,TCS,RELIANCE"></div><div class="g2"><div class="field"><label>Start</label><input id="research-start" type="date" value="2018-01-01"></div><div class="field"><label>End</label><input id="research-end" type="date" value="2025-12-31"></div></div><div class="field"><label>Split mode</label><select id="research-split"><option>percentage_split</option><option>fixed_date_split</option><option>final_holdout</option><option>rolling_time_split</option></select></div><div class="g2"><div class="field"><label>Train %</label><input id="research-train-pct" type="number" value="70"></div><div class="field"><label>Slippage bps</label><input id="research-slippage" type="number" value="7"></div></div><div class="g3"><div class="field"><label>Train months</label><input id="research-train-months" type="number" value="12"></div><div class="field"><label>Test months</label><input id="research-test-months" type="number" value="3"></div><div class="field"><label>Step months</label><input id="research-step-months" type="number" value="3"></div></div><div class="field"><label>Parameter grid JSON</label><textarea id="research-grid" rows="4">{"stop_loss_pct":[0.03,0.05,0.07],"target_pct":[0.1,0.15]}</textarea></div><div class="field"><label>Cost / execution</label><div class="g2"><select id="research-cost"><option>india_equity_delivery_approx</option><option>india_equity_intraday_approx</option></select><select id="research-execution"><option>next_open</option><option>next_close</option></select></div></div><button class="btn btn-primary" onclick="createResearchExperiment()">Save experiment</button><button class="btn" onclick="runSelectedResearchExperiment()">Run validation</button><div id="research-launch-status" class="paper-muted">No experiment selected.</div></aside>
+-    <main class="research-main"><div id="research-summary-cards" class="research-kpis"><div class="empty">Run an experiment to populate validation evidence.</div></div><div class="research-tabs"><button onclick="showResearchPanel('walk-forward')">Walk-forward</button><button onclick="showResearchPanel('parameters')">Parameters</button><button onclick="showResearchPanel('robustness')">Robustness</button><button onclick="showResearchPanel('regimes')">Regimes</button><button onclick="showResearchPanel('symbols')">Symbols</button><button onclick="showResearchPanel('correlation')">Redundancy</button></div><section id="research-panel-walk-forward" class="card research-panel"><div class="card-title">Walk-Forward Results</div><div class="research-table-wrap"><table class="tbl"><thead><tr><th>Fold</th><th>Train</th><th>Unseen test</th><th>Return</th><th>Sharpe</th><th>Drawdown</th><th>PF</th><th>Trades</th><th>Status</th></tr></thead><tbody id="research-folds"></tbody></table></div></section><section id="research-panel-parameters" class="card research-panel" hidden><div class="card-title">Parameter Stability</div><div id="research-parameters" class="empty">No parameter evidence.</div></section><section id="research-panel-robustness" class="card research-panel" hidden><div class="card-title">Robustness Scenarios</div><div id="research-robustness" class="empty">No robustness evidence.</div></section><section id="research-panel-regimes" class="card research-panel" hidden><div class="card-title">Regime Analysis</div><div id="research-regimes" class="empty">Benchmark-dependent evidence appears here.</div></section><section id="research-panel-symbols" class="card research-panel" hidden><div class="card-title">Symbol Contribution</div><div id="research-symbols-result" class="empty">No symbol evidence.</div></section><section id="research-panel-correlation" class="card research-panel" hidden><div class="card-title">Correlation &amp; Redundancy</div><div class="g2"><input id="research-corr-a" placeholder="Strategy A"><input id="research-corr-b" placeholder="Strategy B"></div><button class="btn" onclick="runResearchCorrelation()">Compare supplied signals</button><div id="research-correlation" class="empty">Signal/equity series are required for deterministic comparison.</div></section></main>
++    <main class="research-main"><div class="card-title">Validation Summary</div><div id="research-summary-cards" class="research-kpis"><div class="empty">Run an experiment to populate validation evidence.</div></div><div class="research-tabs"><button onclick="showResearchPanel('walk-forward')">Walk-forward</button><button onclick="showResearchPanel('parameters')">Parameters</button><button onclick="showResearchPanel('robustness')">Robustness</button><button onclick="showResearchPanel('regimes')">Regimes</button><button onclick="showResearchPanel('symbols')">Symbols</button><button onclick="showResearchPanel('correlation')">Redundancy</button></div><section id="research-panel-walk-forward" class="card research-panel"><div class="card-title">Walk-Forward Results</div><div class="research-table-wrap"><table class="tbl"><thead><tr><th>Fold</th><th>Train</th><th>Unseen test</th><th>Return</th><th>Sharpe</th><th>Drawdown</th><th>PF</th><th>Trades</th><th>Status</th></tr></thead><tbody id="research-folds"></tbody></table></div></section><section id="research-panel-parameters" class="card research-panel" hidden><div class="card-title">Parameter Stability</div><div id="research-parameters" class="empty">No parameter evidence.</div></section><section id="research-panel-robustness" class="card research-panel" hidden><div class="card-title">Robustness Scenarios</div><div id="research-robustness" class="empty">No robustness evidence.</div></section><section id="research-panel-regimes" class="card research-panel" hidden><div class="card-title">Regime Analysis</div><div id="research-regimes" class="empty">Benchmark-dependent evidence appears here.</div></section><section id="research-panel-symbols" class="card research-panel" hidden><div class="card-title">Symbol Contribution</div><div id="research-symbols-result" class="empty">No symbol evidence.</div></section><section id="research-panel-correlation" class="card research-panel" hidden><div class="card-title">Correlation &amp; Redundancy</div><div class="g2"><input id="research-corr-a" placeholder="Strategy A"><input id="research-corr-b" placeholder="Strategy B"></div><button class="btn" onclick="runResearchCorrelation()">Compare supplied signals</button><div id="research-correlation" class="empty">Signal/equity series are required for deterministic comparison.</div></section></main>
+     <aside class="research-side"><section class="card"><div class="card-title">Experiment History</div><div id="research-experiments" class="empty">No experiments.</div></section><section class="card"><div class="card-title">False-Discovery Warnings</div><div id="research-false-discovery" class="empty">No evidence.</div></section><section class="card"><div class="card-title">Evidence &amp; Decision</div><div id="research-decision" class="empty">No recommendation.</div></section><section class="card"><div class="card-title">Assistant Explanation</div><div class="research-assistant">The assistant may explain evidence and draft a decision. It cannot alter validation results, approve promotion, place orders, or enable live trading.</div><button class="btn btn-sm" onclick="askAssistant('Explain the selected research validation results and failed checks')">Ask assistant</button></section></aside>
+   </div>
+ </div>
+diff --git a/tests/test_stage6_research_lab.py b/tests/test_stage6_research_lab.py
+index 995a9a9..8a34dab 100644
+--- a/tests/test_stage6_research_lab.py
++++ b/tests/test_stage6_research_lab.py
+@@ -143,3 +143,9 @@ def test_29_no_ml_prediction_model_imported_into_trading_engine():
+ 
+ def test_30_full_runner_persists_reproducible_evidence(stack):
+     exp=create_exp(stack);summary=stack.runner.run(exp["id"]);assert stack.experiments.get(exp["id"])["status"]=="completed" and summary["data_manifest"]["config_hash"] and stack.db.query("SELECT * FROM walk_forward_folds WHERE experiment_id=?",(exp["id"],)) and stack.db.query("SELECT * FROM robustness_results WHERE experiment_id=?",(exp["id"],))
++
++def test_31_main_app_composes_research_lab_and_routes():
++    import main
++    app=main.create_flask_app();client=app.test_client();html=client.get("/").get_data(as_text=True);rules={r.rule for r in app.url_map.iter_rules()}
++    assert all(marker in html for marker in ("pane-research-lab","Experiment Launcher","Validation Summary","Walk-Forward Results","False-Discovery Warnings","Assistant Explanation"))
++    assert {"/api/research/experiments","/api/research/walk-forward/<experiment_id>/folds","/api/research/robustness/<experiment_id>","/api/research/decision/<experiment_id>/draft"} <= rules

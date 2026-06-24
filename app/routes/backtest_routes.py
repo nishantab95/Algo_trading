@@ -7,7 +7,7 @@ from app.core.logging_config import log_event
 
 
 def _ok(data, warnings=None, status=200): return jsonify({"success": True, "data": data, "error": None, "warnings": warnings or []}), status
-def _error(exc, status=400): return jsonify({"success": False, "data": None, "error": str(exc), "warnings": []}), status
+def _error(exc, status=400): return jsonify({"success": False, "data": None, "error": str(exc), "details": {}, "warnings": []}), status
 
 
 def create_backtest_blueprint(service):

@@ -49,3 +49,15 @@ def test_recalibration_route_calls_report_service():
     reports = Reports(); app = Flask(__name__); app.register_blueprint(create_data_blueprint(reports))
     payload = app.test_client().post("/api/recalibrate").get_json()
     assert payload["success"] and reports.calls == 1
+
+
+def test_dashboard_and_state_routes_load():
+    from flask import Flask
+    from app.routes.dashboard_routes import create_dashboard_blueprint
+    app = Flask(__name__, template_folder="../templates")
+    app.register_blueprint(create_dashboard_blueprint(lambda: {"mode": "PAPER", "live_trading_enabled": False}))
+    client = app.test_client()
+    page = client.get("/")
+    state = client.get("/api/state").get_json()
+    assert page.status_code == 200 and b"pane-backtests" in page.data
+    assert state["success"] is True and state["data"]["mode"] == "PAPER" and state["data"]["live_trading_enabled"] is False

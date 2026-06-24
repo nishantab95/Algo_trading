@@ -71,8 +71,9 @@ class PaperOperationsBroker:
         existing=self.database.query("SELECT * FROM paper_orders WHERE client_order_id=?",(client_id,))
         if existing:return existing[0]
         status="pending_approval" if quantity>0 else "rejected"; rejection=None if quantity>0 else "Quantity must be positive"
-        estimated=max(requested,0)*max(quantity,0)
-        settings=self.risk_settings(); costs=estimated*(settings.fee_bps+settings.spread_bps)/10000
+        settings=self.risk_settings();direction=1 if side=="BUY" else -1
+        estimated_fill=max(requested,0)*(1+direction*(settings.slippage_bps+settings.spread_bps/2)/10000)
+        estimated=estimated_fill*max(quantity,0);costs=estimated*settings.fee_bps/10000
         with self.database.transaction() as c:
             cur=c.execute("""INSERT INTO paper_orders(client_order_id,broker_order_id,mode,account_id,strategy_id,combo_id,assistant_action_id,source,symbol,side,quantity,order_type,product_type,requested_price,limit_price,stop_price,estimated_value,estimated_costs,status,rejection_reason,approval_required,approved_by_user,metadata_json,created_at,updated_at)
                 VALUES(?,NULL,'PAPER',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0,?,?,?)""",(client_id,self.account_id,payload.get("strategy_id"),payload.get("combo_id"),payload.get("assistant_action_id"),payload.get("source","manual"),symbol,side,quantity,order_type,payload.get("product_type","delivery"),requested,payload.get("limit_price"),payload.get("stop_price"),estimated,costs,status,rejection,json.dumps(payload.get("metadata",{})),now,now))
@@ -115,7 +116,7 @@ class PaperOperationsBroker:
         if order["side"]=="BUY":
             if account["daily_pnl"]<=-s.max_daily_loss:return reject("MAX_DAILY_LOSS","Daily paper loss limit reached","critical")
             if account["weekly_pnl"]<=-s.max_weekly_loss:return reject("MAX_WEEKLY_LOSS","Weekly paper loss limit reached","critical")
-            if value+order["estimated_costs"]>account["cash"]-account["blocked_cash"]:return reject("INSUFFICIENT_CASH","Insufficient available paper cash")
+            if order["estimated_value"]+order["estimated_costs"]>account["cash"]-account["blocked_cash"]:return reject("INSUFFICIENT_CASH","Insufficient available paper cash including estimated fill costs")
             current=[p for p in self.positions() if p["symbol"]==order["symbol"]]
             if current and not s.allow_duplicate_position:return reject("DUPLICATE_POSITION","Duplicate paper position is not allowed")
             if current and price<current[0]["avg_price"] and not s.allow_averaging_down:return reject("AVERAGING_DOWN","Averaging down is not allowed")

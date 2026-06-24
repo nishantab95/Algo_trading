@@ -17,7 +17,7 @@ from app.research_lab.exports import ResearchExportService
 from app.research_lab.false_discovery import false_discovery_assessment
 from app.research_lab.parameter_sweep import run_parameter_sweep
 from app.research_lab.regime_analysis import analyze_regimes
-from app.research_lab.robustness import run_robustness
+from app.research_lab.robustness import run_robustness,skip_signals_reproducibly,stress_drawdown_slice
 from app.research_lab.scoring import evidence_score
 from app.research_lab.symbol_analysis import analyze_symbols
 from app.research_lab.validation import split_data,validate_market_data
@@ -143,3 +143,35 @@ def test_29_no_ml_prediction_model_imported_into_trading_engine():
 
 def test_30_full_runner_persists_reproducible_evidence(stack):
     exp=create_exp(stack);summary=stack.runner.run(exp["id"]);assert stack.experiments.get(exp["id"])["status"]=="completed" and summary["data_manifest"]["config_hash"] and stack.db.query("SELECT * FROM walk_forward_folds WHERE experiment_id=?",(exp["id"],)) and stack.db.query("SELECT * FROM robustness_results WHERE experiment_id=?",(exp["id"],))
+
+def test_31_main_app_composes_research_lab_and_routes():
+    import main
+    app=main.create_flask_app();client=app.test_client();html=client.get("/").get_data(as_text=True);rules={r.rule for r in app.url_map.iter_rules()}
+    assert all(marker in html for marker in ("pane-research-lab","Experiment Launcher","Validation Summary","Walk-Forward Results","False-Discovery Warnings","Assistant Explanation"))
+    assert {"/api/research/experiments","/api/research/walk-forward/<experiment_id>/folds","/api/research/robustness/<experiment_id>","/api/research/decision/<experiment_id>/draft"} <= rules
+
+
+def test_32_skipped_trade_stress_is_reproducible():
+    frame=pd.DataFrame({"Date":pd.date_range("2024-01-01",periods=10),"Ticker":["X"]*10,"RULE":[1]*10})
+    first,count_a=skip_signals_reproducibly(frame,"RULE",5);second,count_b=skip_signals_reproducibly(frame,"RULE",5)
+    assert count_a==count_b==2 and first["RULE"].tolist()==second["RULE"].tolist() and first["RULE"].sum()==8
+
+
+def test_33_stress_drawdown_period_uses_peak_to_trough_only():
+    frame=pd.DataFrame({"Date":pd.date_range("2024-01-01",periods=6),"Ticker":["X"]*6,"Close":[100,110,105,90,95,120]})
+    stressed,available=stress_drawdown_slice(frame)
+    assert available and stressed["Date"].min()==pd.Timestamp("2024-01-02") and stressed["Date"].max()==pd.Timestamp("2024-01-04")
+
+
+def test_34_unavailable_robustness_evidence_is_not_scored_as_pass_or_fail():
+    def evaluator(_config,_data,changes):
+        if changes.get("regime_filter") or changes.get("universe_fraction",0)>1:return {"_scenario_available":False,"_scenario_warning":"unavailable"}
+        return {"net_return_pct":1,"expectancy":1,"profit_factor":2,"total_trades":10}
+    rows,summary=run_robustness({},None,evaluator)
+    statuses={row["scenario_name"]:row["pass_fail"] for row in rows}
+    assert statuses["market_regime_filter"]==statuses["larger_universe_if_available"]=="unavailable" and summary["robustness_score"]==100
+
+
+def test_35_higher_spread_and_reduced_liquidity_scenarios_are_declared():
+    scenarios={row["scenario_name"]:row["config"] for row in run_robustness({},None,robustness_evaluator)[0]}
+    assert scenarios["higher_spread"]["spread_multiplier"]==2 and scenarios["reduced_liquidity"]["liquidity_multiplier"]==.5

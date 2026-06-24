@@ -45,6 +45,11 @@ def test_no_lookahead_signal_handling():
     assert result.trades[0].entry_price==110
 
 
+def test_same_close_execution_is_explicitly_research_only():
+    result=BacktestEngine(config(execution_price_model="signal_close_for_research_only")).run(bars(closes=[91,100,100,100,100]))
+    assert result.trades[0].entry_price==91 and str(result.trades[0].entry_time).startswith("2024-01-01")
+
+
 def test_long_only_ignores_short_signals(): assert BacktestEngine(config()).run(bars(signals=(-1,0,0))).trades==[]
 
 
@@ -79,8 +84,18 @@ def test_duplicate_symbol_rule_enforced():
     assert len(result.trades)==1
 
 
+def test_opposite_signal_closes_existing_position():
+    result=BacktestEngine(config(direction_mode="long_short",max_holding_bars=99)).run(bars(signals=(1,-1,0,0,0)))
+    assert len(result.trades)==1 and result.trades[0].exit_reason=="OPPOSITE_SIGNAL"
+
+
 def test_cash_cannot_go_negative():
     result=BacktestEngine(config(fixed_quantity=999999)).run(bars()); assert min(row["cash"] for row in result.equity_curve)>=0
+
+
+def test_insufficient_cash_order_is_rejected_explicitly():
+    result=BacktestEngine(config(fixed_quantity=999999,max_position_value_pct=1,cost_model_name="india_equity_delivery_approx",slippage_bps=7,spread_bps=5)).run(bars())
+    assert any(order.status=="REJECTED" and "insufficient cash" in (order.rejection_reason or "") for order in result.orders)
 
 
 def test_fixed_value_position_sizing():
@@ -133,6 +148,14 @@ def test_benchmark_missing_fallback():
     metrics,warnings=apply_benchmark([],bars(),"MISSING",100_000); assert metrics=={} and warnings
 
 
+def test_benchmark_comparison_populates_metrics_and_curve():
+    dates=pd.date_range("2024-01-01",periods=3)
+    curve=[{"timestamp":str(date),"benchmark_value":None,"benchmark_drawdown_pct":None} for date in dates]
+    benchmark=pd.DataFrame({"Date":dates,"Ticker":["NIFTY50"]*3,"Close":[100,110,99]})
+    metrics,warnings=apply_benchmark(curve,benchmark,"NIFTY50",100_000)
+    assert not warnings and metrics["return_pct"]==-1 and metrics["max_drawdown_pct"]==10 and curve[-1]["benchmark_value"]==99_000
+
+
 def test_database_persists_backtest_run(tmp_path):
     db=Database(tmp_path/"bt.sqlite3"); db.initialize(); StrategyRegistry(db).load_builtins()
     data=bars().rename(columns={"TEST_STRAT":"RSI_Oversold"}); cfg=replace(config(strategy_id="RSI_Oversold"))
@@ -146,6 +169,16 @@ def test_api_contract_for_backtest_blueprint(tmp_path):
         def list_runs(self): return []
     app=Flask(__name__); app.register_blueprint(create_backtest_blueprint(Fake())); response=app.test_client().get('/api/backtests')
     assert response.get_json()=={"success":True,"data":[],"error":None,"warnings":[]}
+
+
+def test_backtest_api_failure_has_standard_details_object():
+    from flask import Flask
+    from app.routes.backtest_routes import create_backtest_blueprint
+    class Fake:
+        def details(self,_run_id):raise ValueError("unknown run")
+    app=Flask(__name__);app.register_blueprint(create_backtest_blueprint(Fake()))
+    payload=app.test_client().get('/api/backtests/missing').get_json()
+    assert payload["success"] is False and payload["error"]=="unknown run" and payload["details"]=={}
 
 
 def test_robustness_produces_multiple_scenarios(tmp_path):

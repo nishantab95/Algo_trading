@@ -10,7 +10,7 @@ from app.research_lab.false_discovery import false_discovery_assessment
 from app.research_lab.parameter_sweep import run_parameter_sweep
 from app.research_lab.promotion import recommend
 from app.research_lab.regime_analysis import analyze_regimes
-from app.research_lab.robustness import run_robustness
+from app.research_lab.robustness import run_robustness,skip_signals_reproducibly,stress_drawdown_slice
 from app.research_lab.scoring import evidence_score
 from app.research_lab.symbol_analysis import analyze_symbols
 from app.research_lab.validation import split_data
@@ -25,15 +25,30 @@ class ResearchExperimentRunner:
         risk=exp.get("risk_settings",{});values={"strategy_id":exp.get("strategy_id") or exp.get("combo_id"),"symbols":exp["symbols"],"start_date":exp.get("start_date"),"end_date":exp.get("end_date"),"initial_capital":exp["initial_capital"],"execution_price_model":exp["execution_model"],"max_positions":exp["max_positions"],"position_sizing_method":exp["sizing_model"],"cost_model_name":exp["cost_model"],"slippage_bps":exp["slippage_bps"],"spread_bps":exp["spread_bps"],**{k:v for k,v in risk.items() if k in BacktestConfig.__dataclass_fields__}}
         values.update({k:v for k,v in changes.items() if k in BacktestConfig.__dataclass_fields__});return BacktestConfig(**values)
     def _metrics(self,exp,data=None,changes=None):
-        changes=changes or {};config_changes=dict(changes)
+        changes=changes or {};config_changes=dict(changes);scenario_warning=None
+        evaluation_data=data
         if "slippage_multiplier" in config_changes:config_changes["slippage_bps"]=exp["slippage_bps"]*config_changes.pop("slippage_multiplier")
         if "spread_multiplier" in config_changes:config_changes["spread_bps"]=exp["spread_bps"]*config_changes.pop("spread_multiplier")
         if "fee_multiplier" in config_changes:
             factor=config_changes.pop("fee_multiplier");config_changes["cost_model_name"]="custom";config_changes["custom_cost_settings"]={"brokerage_bps":3*factor,"stt_bps_buy":10*factor,"stt_bps_sell":10*factor,"exchange_txn_bps":.0297*factor,"sebi_bps":.001*factor,"stamp_duty_bps_buy":1.5*factor}
-        if "liquidity_multiplier" in config_changes:config_changes["min_avg_volume"]=100000/max(float(config_changes.pop("liquidity_multiplier")),.01)
+        if "liquidity_multiplier" in config_changes:
+            factor=max(float(config_changes.pop("liquidity_multiplier")),.01);config_changes["min_avg_volume"]=100000/factor;config_changes["liquidity_order_value_pct"]=.02*factor
+        if "deterministic_skip_every" in config_changes:
+            every=int(config_changes.pop("deterministic_skip_every"));evaluation_data,skipped=skip_signals_reproducibly(evaluation_data,exp.get("strategy_id") or exp.get("combo_id"),every);scenario_warning=f"Reproducibly skipped {skipped} signal rows (every {every}th signal)"
+        if config_changes.pop("stress_period",False):
+            evaluation_data,available=stress_drawdown_slice(evaluation_data)
+            if not available:return {"_scenario_available":False,"_scenario_warning":"Stress drawdown period unavailable: supplied data has no multi-date peak-to-trough decline"}
+        if config_changes.pop("regime_filter",False):
+            return {"_scenario_available":False,"_scenario_warning":"Market-regime robustness unavailable without an audited aligned benchmark"}
         if "universe_fraction" in config_changes:
-            fraction=float(config_changes.pop("universe_fraction"));config_changes["symbols"]=exp["symbols"][:max(1,min(len(exp["symbols"]),round(len(exp["symbols"])*fraction)))]
-        config=self._config(exp,**config_changes);result=self.backtests.run(config,data,persist=False);return result.metrics if hasattr(result,"metrics") else result
+            fraction=float(config_changes.pop("universe_fraction"))
+            available_symbols=sorted(set(evaluation_data["Ticker"].dropna())) if evaluation_data is not None and "Ticker" in evaluation_data else list(exp["symbols"])
+            target=max(1,round(len(exp["symbols"])*fraction))
+            if fraction>1 and len(available_symbols)<=len(exp["symbols"]):return {"_scenario_available":False,"_scenario_warning":"Larger-universe robustness unavailable: no additional loaded symbols"}
+            config_changes["symbols"]=available_symbols[:min(len(available_symbols),target)]
+        config=self._config(exp,**config_changes);result=self.backtests.run(config,evaluation_data,persist=False);metrics=dict(result.metrics if hasattr(result,"metrics") else result)
+        if scenario_warning:metrics["_scenario_warning"]=scenario_warning
+        return metrics
     def run(self,experiment_id):
         exp=self.experiments.get(experiment_id);self.experiments.set_status(experiment_id,"running")
         try:

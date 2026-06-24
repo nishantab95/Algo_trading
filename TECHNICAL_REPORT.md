@@ -828,3 +828,119 @@ The post-change Flask process served `/` with HTTP 200 using the exact project i
 Interactive browser attachment was unavailable in the execution environment, so pixel-level visual interaction remains a manual acceptance check. Automated HTML composition, live asset/API delivery, lifecycle behavior, safety boundaries, and persistence all pass.
 
 **Stage 5 status: PASS. Stage 1–5 are stable enough to proceed to Stage 6, while live trading remains disabled.**
+
+## Stage 6 — Strategy Validation and Walk-Forward Research Lab
+
+### Environment, architecture, and experiment model
+
+Stage 6 was implemented with `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe` (Python 3.10.11). The pre-change Stage 1–5 suite passed 179 tests and all existing workspaces served successfully. `app/research_lab` is an orchestration and evidence layer over the existing Stage 2 `BacktestService.run`; it does not implement another execution engine.
+
+Migration 8 adds immutable experiment configs, manifests, walk-forward folds, parameter results, robustness scenarios, regime and symbol results, correlations, validation summaries, and approval-gated research decisions. Experiment IDs are unique and older results are not overwritten. Statuses cover draft, queued, running, completed, failed, cancelled, and archived.
+
+### Data manifests and train/test methodology
+
+Every run stores symbols, date range, rows per symbol, missing/stale/skipped data, data/config hashes, code version, and warnings. Validation checks OHLCV presence, duplicate dates, non-positive prices, negative volume, minimum rows, staleness, survivorship, unaudited corporate actions, data source, and missing historical membership. Warnings remain visible even when execution can proceed.
+
+Fixed-date, percentage, rolling-time, and final-holdout splits report in-sample, unseen out-of-sample, and full-period metrics separately. A positive train result with non-positive test performance produces an overfit warning.
+
+### Walk-forward and parameter stability
+
+Anchored and rolling/expanding folds guarantee that the test period begins after training ends. Train-only parameter selection is passed into the unseen fold. Failed folds are stored with their error. Summaries report completed/failed folds, average/median OOS return, positive-fold rate, worst drawdown, profit factor, expectancy, OOS stability, and pass/fail.
+
+Explicit parameter grids are expanded deterministically. Train/test/full metrics, rank, stability, and isolated-best warnings are persisted. Stage 2 execution parameters such as stops, targets, trailing exits, sizing, and cost assumptions are applied directly. Strategy-indicator threshold grids that require regenerated catalog definitions remain limited to configurations supported by the existing signal generator.
+
+### Robustness, regimes, symbols, and redundancy
+
+Robustness scenarios include base, slippage/spread/fee increases, delayed/worse entry, reduced liquidity, deterministic skipped-trade placeholder, regime filter placeholder, smaller/larger universe, and drawdown stress. All executable scenarios call Stage 2. Results record metrics, pass/fail, and warnings when small assumption changes destroy performance.
+
+Symbol evidence reports trades, net P&L, return, win rate, profit factor, expectancy, contribution, coverage, skipped symbols, and concentration warnings. Regime analysis fails closed: without aligned benchmark history it records `unavailable` rather than fabricating bull/bear/volatility evidence. Signal/equity correlation and overlap produce a redundancy score and keep/merge/disable/test recommendation.
+
+### False discovery, evidence score, and decisions
+
+The false-discovery control warns when a top result is selected from the 353-definition catalog, trade count is low, OOS confirmation is absent, or p-values are unavailable/unreliable. A lightweight Benjamini–Hochberg helper is included for externally supplied p-values.
+
+The evidence score conservatively combines OOS performance, walk-forward stability, parameter stability, robustness to costs, drawdown, trade count, symbol coverage, regime availability, cost sensitivity, multiple-testing risk, and optional paper alignment. Bad OOS and unstable parameters receive explicit penalties. Recommendations are research labels only and require a persisted user approval. Neither the app nor assistant can promote to live or enable trading.
+
+### Assistant, API, reports, and UI
+
+Stage 4 tools can read experiments, folds, scenarios, and decisions, and draft experiment/decision actions. The assistant cannot alter evidence or approve itself. Research APIs cover experiment CRUD/run/cancel/summary, walk-forward, sweeps, robustness, regimes, symbols, correlations, decisions, and exports using the shared response envelope.
+
+The Research Lab UI contains the launcher, validation cards, fold table, parameter and scenario evidence, regime/symbol panels, redundancy panel, false-discovery warning, conservative recommendation, experiment history, and assistant explanation boundary. Eight CSV tables and an experiment-specific Markdown validation report are supported.
+
+### Limitations
+
+Regime evidence requires audited benchmark data and is currently unavailable when that data is absent. Some robustness scenarios are conservative configuration placeholders until Stage 2 supports trade dropping and explicit stress-period selection. Parameter sweeps apply execution/configuration fields supported by Stage 2; arbitrary indicator threshold mutation requires corresponding strategy-definition signal regeneration. Correlation endpoints require supplied aligned series. These limitations are surfaced rather than hidden.
+
+### Verification status
+
+- Dedicated Stage 6 suite: `31 passed`.
+- Full Stage 1–6 suite: `210 passed`.
+- Additive migrations: versions 1–8.
+- Dependency set: unchanged; no ML/DL, optimizer, vector database, or second backtester added.
+
+**Stage 6 safety status:** live trading remains disabled, failed evidence remains visible, and research-label changes remain user-approved.
+
+Post-change live HTTP verification served the Research Lab, explicit Validation Summary, walk-forward, parameter stability, robustness, regime, symbol, redundancy, false-discovery, evidence/decision, and assistant panels. Research and legacy Stage 1–5 assets/APIs returned HTTP 200. Interactive pixel-level browser review remains manual because the in-app browser could not attach.
+
+## Stage 1–6 Stabilization and Acceptance Audit
+
+**Audit date:** 2026-06-24
+
+**Exact interpreter:** `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe`
+
+**Python:** 3.10.11
+
+### Commands and results
+
+The worktree was preserved in `.codex_backups/pre_stage1_6_stabilization.patch` with a matching status snapshot. The live SQLite file was copied before the final startup check. Dependencies were checked with the exact interpreter and were already satisfied; no package change was required.
+
+```powershell
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip install -r requirements.txt
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_backtesting_stage2.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_strategy_factory_stage3.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage4_assistant_rag.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage5_paper_trading.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage6_research_lab.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" main.py
+```
+
+- Final full suite: **222 passed in 26.45 seconds**.
+- Initial isolated suites: Stage 1-focused 12, Stage 2 30, Stage 3 51, Stage 4 44, Stage 5 40, and Stage 6 31 passed.
+- Post-fix focused suites: Stage 1-focused 14, Stage 2 34 before the final API-envelope test, Stage 5 41, and Stage 6 35 passed. The final full run includes the additional Stage 2 API-envelope test and all 222 tests.
+- A redundant final all-stage isolated rerun was blocked by the execution quota after the successful full run; no result is claimed for that blocked command.
+
+### Acceptance matrix
+
+| Stage | Area | Status | Evidence | Notes |
+|---|---|---|---|---|
+| 1 | Foundation, persistence, safety, API/UI | PASS | Clean and idempotent migrations 1–8; durable paper restart tests; reset/exit wiring; broker fail-closed tests; dashboard/API smoke | Live remains disabled by default |
+| 2 | Completed-trade portfolio backtesting | PASS | Execution timing, same-close research label, no-lookahead, cash/position constraints, all exits, costs, benchmark, persistence, reports, API/UI tests | Daily-bar and fill-model limitations remain documented |
+| 3 | Strategy Library and Combo Builder | PASS | 233/233 unique base strategies, 120/120 unique combos, honest unsupported statuses, validation/explanations, Stage 2 routing, API/UI tests | External-data strategies remain unavailable until audited data exists |
+| 4 | Assistant, RAG/search, profile, dashboards | PASS | Offline LM Studio behavior, persisted chat/RAG/search, guarded tools, draft approvals, profile/dashboard persistence, APIs/UI | Generated answers require a separately running LM Studio server |
+| 5 | Paper trading and portfolio operations | PASS | Durable account/order/fill/position lifecycle, exits, accounting, journal, analytics, reports, approval-only assistant integration, API/UI | Deterministic simulator currently fills accepted quantity in full |
+| 6 | Validation and Research Lab | PASS | Reproducible experiments, splits/walk-forward, stability, applied robustness, honest unavailable regime evidence, correlation, decisions, exports, API/UI | Historical membership, corporate actions, and audited regime data remain limitations |
+
+### Database, API, UI, and safety
+
+- A clean temporary database initialized 52 tables and migrations `[1, 2, 3, 4, 5, 6, 7, 8]`; a second initialization made no schema-version change.
+- The composed Flask app exposed 123 routes. The final live probe returned HTTP 200 for `/`, checked 20 Stage 1–6 APIs with valid success/data/warnings envelopes, and loaded all 18 local CSS/JavaScript assets.
+- All required integrated workspace markers were present: dashboard, Backtesting Lab, Strategy Library, Combo Builder, Assistant, Search, Profile, Custom Dashboard, Paper Trading/Portfolio/Journal/Analytics, and Research/Walk-Forward/Robustness/Decision panels.
+- Pixel-level visual interaction and browser-console inspection remain **NEEDS MANUAL CHECK** because the in-app browser could not attach. HTML composition, asset loading, API endpoint wiring, and live localhost rendering passed.
+- `live_trading_enabled` was `False`. No active Stage 1–6 assistant or research tool can place a live order, enable live trading, approve itself, disable risk controls, or store broker credentials. Stage 6 delegates simulations to Stage 2 and contains no live-order integration. No ML/DL prediction package is imported into the trading engine.
+
+### Bugs found and fixed
+
+1. Skipped-trade, stress-period, and unavailable-regime/universe robustness scenarios could be persisted even when scenario-only keys were discarded by `BacktestConfig` filtering. The runner now applies reproducible data transformations and marks unavailable evidence explicitly without scoring it.
+2. Paper order reservations omitted adverse fill movement, allowing an edge-case order to pass approval before failing the non-negative-cash invariant. Reservation and risk approval now include estimated fill movement and fees.
+3. Stage 2 error envelopes omitted `details`; the field is now present.
+4. Required regression coverage was missing for migration idempotency, dashboard/state routing, same-close labeling, opposite signals, explicit insufficient cash, positive benchmark comparison, cost-inclusive paper approval, and robustness application. Tests were added.
+
+### Remaining issues and Stage 7 gate
+
+- Complete a manual browser interaction and console-error pass when the in-app browser is available.
+- LM Studio-generated prose remains optional and offline-safe; deterministic functions do not depend on it.
+- Market data quality, corporate actions, historical constituent membership, partial fills, market impact, exchange calendars, and audited benchmark-regime alignment remain known simulation limits.
+- No result is a profit guarantee. Live trading remains disabled and was not implemented or exercised.
+
+**Decision:** Automated, migration, startup, API, asset, safety, and HTML-composition gates pass, but the required interactive browser/navigation/console gate remains unverified. **Do not proceed to Stage 7 yet.** Close that manual UI gate first. Stage 7 was not started by this audit.

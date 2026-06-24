@@ -187,3 +187,11 @@ def test_40_pending_buy_reserves_and_cancel_releases_cash(stack):
     order=stack.broker.create_order({"symbol":"INFY","side":"BUY","quantity":2,"order_type":"limit","limit_price":90})
     submitted=stack.broker.approve_order(order["id"]);assert submitted["status"]=="submitted" and stack.broker.account()["blocked_cash"]>0
     stack.broker.cancel_order(order["id"]);assert stack.broker.account()["blocked_cash"]==pytest.approx(0) and stack.broker.account()["buying_power"]==pytest.approx(stack.broker.account()["cash"])
+
+
+def test_41_cost_inclusive_reservation_rejects_before_cash_invariant(stack):
+    stack.broker.update_risk_settings({"max_position_value_pct":100,"max_per_symbol_exposure_pct":100,"max_order_value":1_000_000})
+    order=stack.broker.create_order({"symbol":"INFY","side":"BUY","quantity":999})
+    result=stack.broker.approve_order(order["id"])
+    assert result["status"]=="rejected" and "including estimated fill costs" in result["rejection_reason"]
+    assert stack.broker.account()["blocked_cash"]==0 and stack.broker.account()["cash"]==100_000

@@ -12,4 +12,4 @@ pytest>=8.0.0
 # C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe
 # Install with:
 # & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip install -r requirements.txt
-# Stages 4–5 use standard-library HTTP/CSV plus SQLite; no heavy ML/vector or paper-broker dependency is required.
+# Stages 4–6 use standard-library HTTP/CSV/statistics plus SQLite; no heavy ML/vector/optimizer dependency is required.
