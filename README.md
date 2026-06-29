@@ -66,13 +66,13 @@ Buy fills move upward and sell fills downward by configured slippage plus half-s
 
 ### Interpreting results
 
-Prioritize completed-trade sample size, expectancy, drawdown, exposure, cost drag, and stability—not headline return. Sharpe, Sortino, Calmar, profit factor, win rate, and benchmark-relative return all have defensive zero/no-data handling. A good historical metric is evidence about one simulation, not proof of future performance.
+Prioritize completed-trade sample size, expectancy, drawdown, exposure, cost drag, and stabilityâ€”not headline return. Sharpe, Sortino, Calmar, profit factor, win rate, and benchmark-relative return all have defensive zero/no-data handling. A good historical metric is evidence about one simulation, not proof of future performance.
 
-The robustness endpoint reruns normal, 2×/3× slippage, delayed entry, delayed exit, half sizing, and split-window scenarios. Warnings identify fragile results such as low trade count, negative expectancy, excessive drawdown, benchmark underperformance, or an edge that disappears under 2× slippage.
+The robustness endpoint reruns normal, 2Ã—/3Ã— slippage, delayed entry, delayed exit, half sizing, and split-window scenarios. Warnings identify fragile results such as low trade count, negative expectancy, excessive drawdown, benchmark underperformance, or an edge that disappears under 2Ã— slippage.
 
 ## Stage 3 strategy research factory
 
-Stage 3 adds a config-driven library of more than 230 base research definitions and 120 combo definitions. The count describes catalog coverage—not quality or profitability. Strategies supported by current daily OHLCV and technical columns can generate observation-time signals for the Stage 2 engine. Definitions requiring fundamentals, historical constituents, sector mappings, intraday bars, pivots, market profile, pairs, or option chains remain visible with `needs_data`, `needs_intraday_data`, or `simulation_only` status.
+Stage 3 adds a config-driven library of more than 230 base research definitions and 120 combo definitions. The count describes catalog coverageâ€”not quality or profitability. Strategies supported by current daily OHLCV and technical columns can generate observation-time signals for the Stage 2 engine. Definitions requiring fundamentals, historical constituents, sector mappings, intraday bars, pivots, market profile, pairs, or option chains remain visible with `needs_data`, `needs_intraday_data`, or `simulation_only` status.
 
 ### Strategy registry model
 
@@ -101,8 +101,8 @@ CatalogStrategy(
 The **Combo builder** workspace combines primitives or base strategies using `all`, `any`, `weighted_vote`, `min_confirmations`, or `score_threshold`. Each component can carry a weight. Saved combos include exits and risk settings, persist in SQLite, and must validate before they can be enabled or passed into Stage 2.
 
 ```text
-combo config → validate components → generate component signals
-→ combine observation-time signals → Stage 2 backtest → persisted reports
+combo config â†’ validate components â†’ generate component signals
+â†’ combine observation-time signals â†’ Stage 2 backtest â†’ persisted reports
 ```
 
 Validation checks metadata, primitive names, entry logic, required columns, timeframe, direction compatibility, and component references. Unsupported definitions are not silently skipped. Their status and reason appear in the API and UI. Simulation-only options definitions cannot route to paper or live execution.
@@ -128,7 +128,7 @@ $env:RAG_ENABLED = "true"
 $env:RAG_MODE = "sqlite_fts"
 ```
 
-LM Studio may be offline: Flask still starts, local RAG/search remains available, and chat returns a clear offline response. Use **Search → Reindex** to rebuild local retrieval records. Use **Profile** and **Dashboards** to create preview drafts; approve or reject the exact draft before any database mutation executes.
+LM Studio may be offline: Flask still starts, local RAG/search remains available, and chat returns a clear offline response. Use **Search â†’ Reindex** to rebuild local retrieval records. Use **Profile** and **Dashboards** to create preview drafts; approve or reject the exact draft before any database mutation executes.
 
 Assistant capabilities include searching RSI/EMA strategies, explaining backtests, showing paper/backtest trade history, reviewing risk events, drafting strategy/combo changes, drafting paper orders, updating the trading profile, and building allowlisted dashboards. It cannot place live orders, enable live trading, alter broker credentials, disable the risk manager, run arbitrary Python, approve its own actions, or bypass validation/backtesting.
 
@@ -240,7 +240,7 @@ Stage 4 is implemented and remains the assistant/search layer. Stage 5 now adds 
 
 ## Stage 5 paper trading and portfolio operations
 
-Stage 5 replaces the toy “click buy, show a position” pattern with an approval-gated broker simulator. The durable flow is: order draft → deterministic validation → risk check → explicit user approval → submitted paper order → simulated fill → cash and position accounting → account snapshot → journal and analytics. It never calls the live Zerodha broker.
+Stage 5 replaces the toy â€œclick buy, show a positionâ€ pattern with an approval-gated broker simulator. The durable flow is: order draft â†’ deterministic validation â†’ risk check â†’ explicit user approval â†’ submitted paper order â†’ simulated fill â†’ cash and position accounting â†’ account snapshot â†’ journal and analytics. It never calls the live Zerodha broker.
 
 The default account is long-only, cash-backed, and unleveraged. Cash cannot become negative. Account state, orders, status-transition events, fills, positions, reset archives, snapshots, completed-trade journal entries, and strategy reviews are stored in SQLite through additive migration 7. A reset requires `{ "confirm": true }` and archives the prior account state before clearing Stage 5 operational records.
 
@@ -262,11 +262,11 @@ Run Stage 5 with the project interpreter:
 
 Paper results are simulations, not forecasts or profit guarantees. Fill quality, liquidity, exchange behavior, corporate actions, connectivity, and broker reconciliation differ materially in live markets. Live trading remains disabled.
 
-Verified Stage 5 result: 40 dedicated paper-operations tests and 179 combined Stage 1–5 tests pass with the exact project interpreter.
+Verified Stage 5 result: 40 dedicated paper-operations tests and 179 combined Stage 1â€“5 tests pass with the exact project interpreter.
 
 ## Stage 6 strategy validation and walk-forward research lab
 
-Stage 6 asks whether a rule-based strategy remains stable after honest validation—not which historical curve looks best. It persists immutable research experiments and delegates every simulated trade to the existing Stage 2 completed-trade `BacktestService`; it does not contain a second backtester, predictive ML model, or live-order path.
+Stage 6 asks whether a rule-based strategy remains stable after honest validationâ€”not which historical curve looks best. It persists immutable research experiments and delegates every simulated trade to the existing Stage 2 completed-trade `BacktestService`; it does not contain a second backtester, predictive ML model, or live-order path.
 
 Each experiment saves the strategy/combo, universe, symbols, dates, execution/cost assumptions, sizing, risk settings, parameter grid, validation configuration, and status. A reproducibility manifest records symbol/date coverage, row counts, missing/stale/skipped symbols, data/config hashes, code version, and warnings for survivorship, corporate actions, and unavailable historical index membership.
 
@@ -288,7 +288,7 @@ Run Stage 6 with the exact project interpreter:
 
 Validation results remain conditional on data quality and simulation assumptions. They do not prove profitability or authorize live trading.
 
-## Stage 1–6 capability and operating guide
+## Stage 1â€“6 capability and operating guide
 
 - **Foundation:** SQLite migrations and durable paper state initialize automatically. The default mode is PAPER and live trading remains disabled.
 - **Backtesting Lab:** choose a strategy, symbols, dates, execution timing, costs, sizing, and risk assumptions; run the completed-trade Stage 2 engine and inspect trades, equity, drawdown, benchmark, and exports.
@@ -298,6 +298,25 @@ Validation results remain conditional on data quality and simulation assumptions
 - **Paper Trading Terminal:** review and approve paper-only orders, positions, exits, portfolio accounting, journal entries, snapshots, analytics, and reports. Exit sweeps never create entries.
 - **Research Lab:** save reproducible experiments, run train/test and walk-forward validation, inspect parameter stability and applied robustness scenarios, and draft approval-gated research decisions.
 
-Acceptance result on 2026-06-24: 222 tests passed with Python 3.10.11 from the exact project venv. Flask served the dashboard and all Stage 1–6 API/static-asset smoke checks passed. Pixel-level browser interaction and browser-console inspection still require a manual check because the in-app browser could not attach during the audit.
+Acceptance result on 2026-06-24: 222 tests passed with Python 3.10.11 from the exact project venv. Flask served the dashboard and all Stage 1â€“6 API/static-asset smoke checks passed. Pixel-level browser interaction and browser-console inspection still require a manual check because the in-app browser could not attach during the audit.
 
-This software provides historical simulation and paper-trading research only. It offers no profit guarantee, and no Stage 1–6 result authorizes live trading.
+
+## Stage 1–6 Browser UI Acceptance Gate
+
+**Batch date/time:** 2026-06-29 16:15:23 +05:30
+
+**Exact interpreter:** `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe`
+
+**Python version:** 3.10.11
+
+**Verification results**
+
+- Full pytest: `222 passed`
+- App startup: `main.py` printed the Flask serving banner, but the localhost browser-console walk was not fully verifiable in this environment
+- Browser UI pages checked by static template scan: Main Dashboard, Backtesting Lab, Strategy Library, Combo Builder, Assistant, App Search, Profile, Custom Dashboard, Paper Trading Terminal, Portfolio, Trade Journal, Paper Analytics, Research Lab, Walk-Forward, Robustness Lab, Validation Report
+- Browser console: not available in this batch because the in-app browser could not attach
+- Static/fallback checks: required panes and paper/research markers are present in `templates/index.html`; no repository-side Stage 1–6 UI bug was identified
+- Remaining issues: interactive browser navigation and console inspection still need a successful manual pass before Stage 7 can start
+
+Stage 7 should not begin yet. Browser UI gate is incomplete.
+This software provides historical simulation and paper-trading research only. It offers no profit guarantee, and no Stage 1â€“6 result authorizes live trading.

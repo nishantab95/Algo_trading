@@ -1,0 +1,9 @@
+================================================================================
+  INTERACTIVE ALGO TRADING TERMINAL
+================================================================================
+Dashboard: http://127.0.0.1:5000
+Data dir : D:\Git\Algo_trading\data\raw
+Reports  : D:\Git\Algo_trading\reports
+================================================================================
+ * Serving Flask app 'main'
+ * Debug mode: off

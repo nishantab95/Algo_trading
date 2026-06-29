@@ -1,6 +1,11 @@
 # Changelog
+## Unreleased â€” Stage 1â€“6 browser UI acceptance gate
 
-## Unreleased — Stage 1–6 stabilization and acceptance audit
+- Recorded the 2026-06-29 browser UI gate batch with the exact project interpreter and pytest baseline.
+- Static template inspection confirmed the required Stage 1â€“6 panes and paper/research markers in `templates/index.html`.
+- Browser-console inspection was not available because the in-app browser could not attach, so Stage 7 should not begin yet.
+
+## Unreleased Ã¢â‚¬â€ Stage 1Ã¢â‚¬â€œ6 stabilization and acceptance audit
 
 - Backed up the dirty worktree and live SQLite database before stabilization checks; no user changes were discarded.
 - Verified the exact project interpreter as Python 3.10.11, installed requirements, and confirmed 233 unique base strategies and 120 unique combos.
@@ -12,7 +17,7 @@
 - Updated README and the technical report with exact commands, acceptance evidence, limitations, and the Stage 7 gate.
 - Remaining manual check: pixel-level interaction, navigation clicks, and browser-console inspection because the in-app browser control surface could not attach.
 
-## Unreleased — Stage 6 validation and walk-forward research lab
+## Unreleased Ã¢â‚¬â€ Stage 6 validation and walk-forward research lab
 
 - Added additive migration 8 for experiments, reproducibility manifests, walk-forward folds, parameter sweeps, robustness/regime/symbol evidence, correlations, summaries, and research decisions.
 - Added fixed/percentage/rolling/final train-test splits and anchored/rolling/expanding unseen-period validation over the existing Stage 2 backtester.
@@ -20,10 +25,10 @@
 - Added fail-closed regime analysis, symbol coverage/concentration evidence, correlation/redundancy scoring, and false-discovery warnings.
 - Added conservative evidence scoring and approval-only reject/continue/paper-test/tiny-live-later research labels; no live enablement exists.
 - Added research CSV/Markdown reports, APIs, assistant read/draft boundaries, and the professional Research Lab UI.
-- Added 31 focused Stage 6 tests; the complete Stage 1–6 suite passes 210 tests with synthetic/local data only.
+- Added 31 focused Stage 6 tests; the complete Stage 1Ã¢â‚¬â€œ6 suite passes 210 tests with synthetic/local data only.
 - Documented limitations: unavailable unaudited regime evidence, placeholder trade-drop/stress scenarios, and strategy-definition parameter regeneration boundaries.
 
-## Unreleased — Stage 5 paper trading and portfolio operations
+## Unreleased Ã¢â‚¬â€ Stage 5 paper trading and portfolio operations
 
 - Added additive migration 7 for future-ready paper accounts, fills, order events, snapshots, journal, strategy reviews, reset archives, risk settings, and Stage 5 order/position fields.
 - Added an approval-gated, long-only paper broker simulator with market, limit, stop, and stop-limit lifecycle handling.
@@ -32,15 +37,15 @@
 - Added completed-trade journal annotations, CSV reports, after-cost analytics, warnings, and configurable strategy paper reviews.
 - Integrated Stage 5 read/draft/approval tools into the Stage 4 assistant without granting direct execution or live access.
 - Added the professional Paper Trading & Portfolio Operations terminal and Stage 5 API surface.
-- Added 40 focused Stage 5 tests using synthetic prices only; the complete Stage 1–5 suite now passes 179 tests with no broker, LM Studio, internet, or live-order dependency.
+- Added 40 focused Stage 5 tests using synthetic prices only; the complete Stage 1Ã¢â‚¬â€œ5 suite now passes 179 tests with no broker, LM Studio, internet, or live-order dependency.
 - Updated README and technical documentation. Remaining limitations include full-quantity deterministic fills and simplified period/calendar accounting.
 
-## Unreleased — Stage 4 local assistant and command center
+## Unreleased Ã¢â‚¬â€ Stage 4 local assistant and command center
 
 ### Environment and verification
 
 - Verified `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe` as Python 3.10.11.
-- Verified the Stage 1–3 baseline: 95 tests passed, 233 base strategies, and 120 combos.
+- Verified the Stage 1Ã¢â‚¬â€œ3 baseline: 95 tests passed, 233 base strategies, and 120 combos.
 - Added 44 dedicated Stage 4 tests; the full suite reached 139 passing tests.
 - Kept dependencies minimal: standard-library HTTP and SQLite; no LangChain, vector database, or ML/DL package.
 
@@ -49,7 +54,7 @@
 - Added offline-safe LM Studio chat/status integration.
 - Added local RAG and app-wide structured search.
 - Added controlled read-only, draft, approval-required, and forbidden tool boundaries.
-- Added persisted conversations, action drafts, profiles, dashboards/widgets, search records, and trade annotations through migrations 4–5.
+- Added persisted conversations, action drafts, profiles, dashboards/widgets, search records, and trade annotations through migrations 4Ã¢â‚¬â€œ5.
 - Added approval-protected profile, dashboard, strategy/combo, backtest, paper-order, reset, and trade-note boundaries.
 - Added watchlist and saved-screener persistence through additive migration 6 and included both in local retrieval.
 - Corrected draft-tool action mapping, enforced failed risk checks at approval, and completed deterministic executors for watchlists, screeners, risk settings, and paper-order cancellation.
@@ -63,7 +68,7 @@
 - Full visual browser interaction remains a manual acceptance item when browser automation is unavailable.
 - Live trading and predictive ML/DL remain outside the assistant.
 
-## Unreleased — Stage 1–3 verification
+## Unreleased Ã¢â‚¬â€ Stage 1Ã¢â‚¬â€œ3 verification
 
 ### Stage 1 stabilization
 
@@ -91,11 +96,11 @@
 - Added behavior tests proving reset and exit-only sweep cannot invoke the scan callback, plus recalibration routing and the complete Stage 2 export bundle.
 - Added `not` support consistently across the combo engine, validator, UI, and tests.
 - Corrected all-winner profit factor handling: it is now explicitly undefined instead of incorrectly reported as a currency amount.
-- Stage 1–3 execution was later verified with the project venv: 95 tests passed before Stage 4.
+- Stage 1Ã¢â‚¬â€œ3 execution was later verified with the project venv: 95 tests passed before Stage 4.
 
 ### Remaining known issues
 
 - Runtime tests, migrations, catalog imports, API composition, and real HTTP startup are verified with the project venv; visual browser interaction remains a manual check.
 - Intraday, fundamentals, sector/index context, pairs, and options-chain strategies remain visibly unsupported until their required datasets exist.
-- Live trading remains disabled and is outside Stage 1–3 acceptance.
+- Live trading remains disabled and is outside Stage 1Ã¢â‚¬â€œ3 acceptance.
 - Backtest results are historical simulations and do not guarantee profit.
