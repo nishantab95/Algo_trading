@@ -1,4 +1,14 @@
 # Changelog
+## Unreleased - Stage 7 Batch 2 broker modes and broker factory
+
+- Added explicit broker modes: `live_disabled`, `paper`, `broker_readonly`, `shadow_live`, and `tiny_live`, defaulting to `live_disabled`.
+- Hardened broker capabilities and added a safe factory/service layer that never returns `ZerodhaBroker` for Stage 7 Batch 2 modes.
+- Added `MockBroker` for fail-closed non-paper modes and kept paper execution on the local `PaperBroker` only.
+- Added safe broker status, mode, quotes, funds, positions, and holdings APIs; assistant mode switching and broker actions are blocked.
+- Added 12 focused Stage 7 Batch 2 tests. Focused result: `12 passed`; full result: `234 passed` with the exact project interpreter.
+- API smoke passed for the new broker endpoints; no UI work was included in this batch.
+- Live orders remain disabled. Tiny-live is locked and cannot place real orders.
+
 ## Unreleased â€” Stage 1â€“6 browser UI acceptance gate
 
 - Recorded the 2026-06-29 browser UI gate batch with the exact project interpreter and pytest baseline.

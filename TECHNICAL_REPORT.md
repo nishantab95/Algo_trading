@@ -963,3 +963,76 @@ The worktree was preserved in `.codex_backups/pre_stage1_6_stabilization.patch` 
 - Remaining issues: interactive browser navigation and console inspection still need a successful manual pass before Stage 7 can start
 
 **Decision:** Stage 7 should not begin yet. Browser UI gate is incomplete.
+
+## Stage 7 Batch 2 - Broker modes and broker factory
+
+**Batch date/time:** 2026-07-03 Asia/Calcutta
+
+**Exact interpreter:** `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe`
+
+**Python version:** 3.10.11
+
+**Detected before work:** Stage 7 Batch 2 was `NOT IMPLEMENTED`. The required Batch 2 broker-mode/factory files and `tests/test_stage7_broker_modes.py` were missing. Batches 3-8 were also not implemented in the current repo.
+
+**Commands run**
+
+```powershell
+git status --short
+New-Item -ItemType Directory -Force -Path .codex_backups
+git diff --output=.codex_backups\pre_codex55_high_thinking.patch
+git status --short > .codex_backups\pre_codex55_high_thinking_status.txt
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import sys; print(sys.executable); print(sys.version)"
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip --version
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage7_broker_modes.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import main; app=main.create_flask_app(); client=app.test_client(); ..."
+```
+
+**Test results**
+
+- Baseline full pytest before Batch 2 work: `222 passed in 44.45s`.
+- Focused Stage 7 Batch 2 pytest: `12 passed in 3.47s`.
+- Final full pytest after Batch 2 work: `234 passed in 46.14s`.
+- API smoke: `/api/broker/status`, `/api/broker/modes`, `/api/broker/mode`, `/api/broker/funds`, `/api/broker/positions`, and `/api/broker/holdings` returned HTTP 200; assistant tiny-live mode switch returned HTTP 403; composed app exposed 131 routes.
+- UI smoke: not applicable in Batch 2; no broker safety UI was implemented in this batch.
+
+**Files changed**
+
+- `app/core/config.py`
+- `app/brokers/base.py`
+- `app/brokers/broker_modes.py`
+- `app/brokers/mock_broker.py`
+- `app/brokers/broker_factory.py`
+- `app/brokers/broker_service.py`
+- `app/brokers/paper.py`
+- `app/brokers/zerodha.py`
+- `app/brokers/__init__.py`
+- `app/routes/broker_routes.py`
+- `tests/test_stage7_broker_modes.py`
+- `README.md`
+- `TECHNICAL_REPORT.md`
+- `CHANGELOG.md`
+
+**Safety result**
+
+The broker mode default is `live_disabled`. The supported modes are `live_disabled`, `paper`, `broker_readonly`, `shadow_live`, and `tiny_live`. The Stage 7 Batch 2 broker factory never returns `ZerodhaBroker`; paper mode uses the local `PaperBroker`, while all non-paper modes use `MockBroker` and reject order mutation fail-closed. Tiny-live is present but locked for live orders. The assistant cannot switch broker modes or execute broker actions. No live orders are allowed, no real Zerodha APIs are called, and no broker secrets are stored or exposed by the new status APIs.
+
+**Remaining Stage 7 work**
+
+Batch 3 broker reconciliation and live readiness is next. Batches 4-8 remain unimplemented: tiny-live unlock/risk/kill switch, shadow-live reports, assistant broker-safety integration, broker safety UI, and final Stage 7 verification.
+
+This batch is complete. The next batch can begin.
+
+
+### Pre-work Stage 7 matrix for this batch
+
+| Batch | Expected | Evidence files before work | Tests existed before work? | Test result before work | Status before work | Notes |
+|---|---|---|---|---|---|---|
+| Stage 7 Batch 2 - Broker modes/factory | Broker modes, factory, mock broker, broker service, safe APIs | Required Batch 2 files missing | No | Not run | NOT IMPLEMENTED | Implemented in this batch |
+| Stage 7 Batch 3 - Reconciliation/readiness | Reconciliation and live readiness | Required files missing | No | Not run | NOT IMPLEMENTED | Next batch |
+| Stage 7 Batch 4 - Tiny-live gate/risk/kill switch | Tiny-live unlock, strict limits, kill switch | Required files missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 3 passes |
+| Stage 7 Batch 5 - Shadow-live reports | Shadow-live service and reports | Required files missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 4 passes |
+| Stage 7 Batch 6 - Assistant broker-safety integration | Assistant broker safety explanations/drafts | Required test missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 5 passes |
+| Stage 7 Batch 7 - Broker safety UI | Broker safety panels and UI smoke | Required UI evidence missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 6 passes |
+| Stage 7 Batch 8 - Final Stage 7 verification | Full verification and final report | Required final report missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 7 passes |

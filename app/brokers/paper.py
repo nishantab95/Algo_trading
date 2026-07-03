@@ -18,6 +18,12 @@ def _now() -> str:
 
 class PaperBroker(BaseBroker):
     mode = "PAPER"
+    broker_name = "paper"
+    read_only = False
+    real_broker = False
+    supports_live_orders = False
+    supports_paper_orders = True
+    supports_order_mutation = True
 
     def __init__(self, price_provider: Callable[[str], float], database: Database | None = None, risk_manager: RiskManager | None = None) -> None:
         self.database = database or get_database()
@@ -32,6 +38,42 @@ class PaperBroker(BaseBroker):
                 "INSERT OR IGNORE INTO paper_account(id,cash,starting_capital,realized_pnl,unrealized_pnl,total_equity,updated_at) VALUES(1,?,?,?,?,?,?)",
                 (cfg.INITIAL_CAPITAL, cfg.INITIAL_CAPITAL, 0.0, 0.0, cfg.INITIAL_CAPITAL, now),
             )
+
+
+    def connect(self) -> dict:
+        return {"connected": True, "mode": self.mode, "source": "paper"}
+
+    def disconnect(self) -> dict:
+        return {"connected": True, "mode": self.mode, "source": "paper", "message": "Paper broker remains locally available."}
+
+    def is_connected(self) -> bool:
+        return True
+
+    def get_profile(self) -> dict:
+        account = self.get_funds()
+        return {"mode": self.mode, "broker": "paper", "account_id": "default", "currency": "INR", "cash": account["cash"]}
+
+    def get_quote(self, symbol: str) -> dict:
+        clean_symbol = str(symbol).upper()
+        return {"symbol": clean_symbol, "last_price": float(self.price_provider(clean_symbol)), "source": "paper", "stale": False}
+
+    def get_orders(self) -> list[dict]:
+        return self.database.query("SELECT * FROM paper_orders ORDER BY created_at DESC LIMIT 200")
+
+    def get_order(self, order_id: str) -> dict:
+        rows = self.database.query("SELECT * FROM paper_orders WHERE client_order_id=? OR CAST(id AS TEXT)=?", (str(order_id), str(order_id)))
+        if not rows:
+            raise ValueError("Unknown paper order.")
+        return rows[0]
+
+    def get_trades(self) -> list[dict]:
+        return self.database.query("SELECT * FROM paper_trades ORDER BY exit_time DESC LIMIT 200")
+
+    def get_instruments(self) -> list[dict]:
+        return []
+
+    def modify_order(self, order_id: str, modification: dict) -> dict:
+        self.reject_mutation("paper order modification")
 
     def get_quotes(self, symbols: list[str]) -> dict[str, float]:
         return {symbol: float(self.price_provider(symbol)) for symbol in symbols}

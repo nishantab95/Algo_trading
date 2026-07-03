@@ -11,6 +11,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 @dataclass(frozen=True)
 class Stage1Config:
     live_trading_enabled: bool = _env_bool("ALGO_LIVE_TRADING_ENABLED", False)
+    broker_mode: str = os.getenv("ALGO_BROKER_MODE", "live_disabled").strip().lower() or "live_disabled"
     kill_switch: bool = _env_bool("ALGO_KILL_SWITCH", False)
     max_order_value: float = float(os.getenv("ALGO_MAX_ORDER_VALUE", "250000"))
     max_daily_loss: float = float(os.getenv("ALGO_MAX_DAILY_LOSS", "25000"))

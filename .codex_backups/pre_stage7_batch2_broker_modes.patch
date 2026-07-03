@@ -1,0 +1,345 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 1da1ac9..aaf8991 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,4 +1,14 @@
+ # Changelog
++## Unreleased - Stage 7 Batch 2 broker modes and broker factory
++
++- Added explicit broker modes: `live_disabled`, `paper`, `broker_readonly`, `shadow_live`, and `tiny_live`, defaulting to `live_disabled`.
++- Hardened broker capabilities and added a safe factory/service layer that never returns `ZerodhaBroker` for Stage 7 Batch 2 modes.
++- Added `MockBroker` for fail-closed non-paper modes and kept paper execution on the local `PaperBroker` only.
++- Added safe broker status, mode, quotes, funds, positions, and holdings APIs; assistant mode switching and broker actions are blocked.
++- Added 12 focused Stage 7 Batch 2 tests. Focused result: `12 passed`; full result: `234 passed` with the exact project interpreter.
++- API smoke passed for the new broker endpoints; no UI work was included in this batch.
++- Live orders remain disabled. Tiny-live is locked and cannot place real orders.
++
+ ## Unreleased â€” Stage 1â€“6 browser UI acceptance gate
+ 
+ - Recorded the 2026-06-29 browser UI gate batch with the exact project interpreter and pytest baseline.
+diff --git a/README.md b/README.md
+index 4725102..ae75bce 100644
+--- a/README.md
++++ b/README.md
+@@ -320,3 +320,63 @@ Acceptance result on 2026-06-24: 222 tests passed with Python 3.10.11 from the e
+ 
+ Stage 7 should not begin yet. Browser UI gate is incomplete.
+ This software provides historical simulation and paper-trading research only. It offers no profit guarantee, and no Stage 1â€“6 result authorizes live trading.
++
++## Stage 7 Batch 2 - Broker modes and broker factory
++
++**Batch date/time:** 2026-07-03 Asia/Calcutta
++
++**Exact interpreter:** `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe`
++
++**Python version:** 3.10.11
++
++**Detected before work:** Stage 7 Batch 2 was `NOT IMPLEMENTED`. The required Batch 2 broker-mode/factory files and `tests/test_stage7_broker_modes.py` were missing. Batches 3-8 were also not implemented in the current repo.
++
++**Commands run**
++
++```powershell
++git status --short
++New-Item -ItemType Directory -Force -Path .codex_backups
++git diff --output=.codex_backups\pre_codex55_high_thinking.patch
++git status --short > .codex_backups\pre_codex55_high_thinking_status.txt
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import sys; print(sys.executable); print(sys.version)"
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip --version
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage7_broker_modes.py -q
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import main; app=main.create_flask_app(); client=app.test_client(); ..."
++```
++
++**Test results**
++
++- Baseline full pytest before Batch 2 work: `222 passed in 44.45s`.
++- Focused Stage 7 Batch 2 pytest: `12 passed in 3.47s`.
++- Final full pytest after Batch 2 work: `234 passed in 46.14s`.
++- API smoke: `/api/broker/status`, `/api/broker/modes`, `/api/broker/mode`, `/api/broker/funds`, `/api/broker/positions`, and `/api/broker/holdings` returned HTTP 200; assistant tiny-live mode switch returned HTTP 403; composed app exposed 131 routes.
++- UI smoke: not applicable in Batch 2; no broker safety UI was implemented in this batch.
++
++**Files changed**
++
++- `app/core/config.py`
++- `app/brokers/base.py`
++- `app/brokers/broker_modes.py`
++- `app/brokers/mock_broker.py`
++- `app/brokers/broker_factory.py`
++- `app/brokers/broker_service.py`
++- `app/brokers/paper.py`
++- `app/brokers/zerodha.py`
++- `app/brokers/__init__.py`
++- `app/routes/broker_routes.py`
++- `tests/test_stage7_broker_modes.py`
++- `README.md`
++- `TECHNICAL_REPORT.md`
++- `CHANGELOG.md`
++
++**Safety result**
++
++The broker mode default is `live_disabled`. The supported modes are `live_disabled`, `paper`, `broker_readonly`, `shadow_live`, and `tiny_live`. The Stage 7 Batch 2 broker factory never returns `ZerodhaBroker`; paper mode uses the local `PaperBroker`, while all non-paper modes use `MockBroker` and reject order mutation fail-closed. Tiny-live is present but locked for live orders. The assistant cannot switch broker modes or execute broker actions. No live orders are allowed, no real Zerodha APIs are called, and no broker secrets are stored or exposed by the new status APIs.
++
++**Remaining Stage 7 work**
++
++Batch 3 broker reconciliation and live readiness is next. Batches 4-8 remain unimplemented: tiny-live unlock/risk/kill switch, shadow-live reports, assistant broker-safety integration, broker safety UI, and final Stage 7 verification.
++
++This batch is complete. The next batch can begin.
+diff --git a/TECHNICAL_REPORT.md b/TECHNICAL_REPORT.md
+index bc2d219..450dc16 100644
+--- a/TECHNICAL_REPORT.md
++++ b/TECHNICAL_REPORT.md
+@@ -962,4 +962,77 @@ The worktree was preserved in `.codex_backups/pre_stage1_6_stabilization.patch`
+ - Static/fallback checks: required panes and paper/research markers are present in `templates/index.html`; no repository-side Stage 1–6 UI bug was identified
+ - Remaining issues: interactive browser navigation and console inspection still need a successful manual pass before Stage 7 can start
+ 
+-**Decision:** Stage 7 should not begin yet. Browser UI gate is incomplete.
+\ No newline at end of file
++**Decision:** Stage 7 should not begin yet. Browser UI gate is incomplete.
++
++## Stage 7 Batch 2 - Broker modes and broker factory
++
++**Batch date/time:** 2026-07-03 Asia/Calcutta
++
++**Exact interpreter:** `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe`
++
++**Python version:** 3.10.11
++
++**Detected before work:** Stage 7 Batch 2 was `NOT IMPLEMENTED`. The required Batch 2 broker-mode/factory files and `tests/test_stage7_broker_modes.py` were missing. Batches 3-8 were also not implemented in the current repo.
++
++**Commands run**
++
++```powershell
++git status --short
++New-Item -ItemType Directory -Force -Path .codex_backups
++git diff --output=.codex_backups\pre_codex55_high_thinking.patch
++git status --short > .codex_backups\pre_codex55_high_thinking_status.txt
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import sys; print(sys.executable); print(sys.version)"
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip --version
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage7_broker_modes.py -q
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
++& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import main; app=main.create_flask_app(); client=app.test_client(); ..."
++```
++
++**Test results**
++
++- Baseline full pytest before Batch 2 work: `222 passed in 44.45s`.
++- Focused Stage 7 Batch 2 pytest: `12 passed in 3.47s`.
++- Final full pytest after Batch 2 work: `234 passed in 46.14s`.
++- API smoke: `/api/broker/status`, `/api/broker/modes`, `/api/broker/mode`, `/api/broker/funds`, `/api/broker/positions`, and `/api/broker/holdings` returned HTTP 200; assistant tiny-live mode switch returned HTTP 403; composed app exposed 131 routes.
++- UI smoke: not applicable in Batch 2; no broker safety UI was implemented in this batch.
++
++**Files changed**
++
++- `app/core/config.py`
++- `app/brokers/base.py`
++- `app/brokers/broker_modes.py`
++- `app/brokers/mock_broker.py`
++- `app/brokers/broker_factory.py`
++- `app/brokers/broker_service.py`
++- `app/brokers/paper.py`
++- `app/brokers/zerodha.py`
++- `app/brokers/__init__.py`
++- `app/routes/broker_routes.py`
++- `tests/test_stage7_broker_modes.py`
++- `README.md`
++- `TECHNICAL_REPORT.md`
++- `CHANGELOG.md`
++
++**Safety result**
++
++The broker mode default is `live_disabled`. The supported modes are `live_disabled`, `paper`, `broker_readonly`, `shadow_live`, and `tiny_live`. The Stage 7 Batch 2 broker factory never returns `ZerodhaBroker`; paper mode uses the local `PaperBroker`, while all non-paper modes use `MockBroker` and reject order mutation fail-closed. Tiny-live is present but locked for live orders. The assistant cannot switch broker modes or execute broker actions. No live orders are allowed, no real Zerodha APIs are called, and no broker secrets are stored or exposed by the new status APIs.
++
++**Remaining Stage 7 work**
++
++Batch 3 broker reconciliation and live readiness is next. Batches 4-8 remain unimplemented: tiny-live unlock/risk/kill switch, shadow-live reports, assistant broker-safety integration, broker safety UI, and final Stage 7 verification.
++
++This batch is complete. The next batch can begin.
++
++
++### Pre-work Stage 7 matrix for this batch
++
++| Batch | Expected | Evidence files before work | Tests existed before work? | Test result before work | Status before work | Notes |
++|---|---|---|---|---|---|---|
++| Stage 7 Batch 2 - Broker modes/factory | Broker modes, factory, mock broker, broker service, safe APIs | Required Batch 2 files missing | No | Not run | NOT IMPLEMENTED | Implemented in this batch |
++| Stage 7 Batch 3 - Reconciliation/readiness | Reconciliation and live readiness | Required files missing | No | Not run | NOT IMPLEMENTED | Next batch |
++| Stage 7 Batch 4 - Tiny-live gate/risk/kill switch | Tiny-live unlock, strict limits, kill switch | Required files missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 3 passes |
++| Stage 7 Batch 5 - Shadow-live reports | Shadow-live service and reports | Required files missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 4 passes |
++| Stage 7 Batch 6 - Assistant broker-safety integration | Assistant broker safety explanations/drafts | Required test missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 5 passes |
++| Stage 7 Batch 7 - Broker safety UI | Broker safety panels and UI smoke | Required UI evidence missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 6 passes |
++| Stage 7 Batch 8 - Final Stage 7 verification | Full verification and final report | Required final report missing | No | Not run | NOT IMPLEMENTED | Do not start until Batch 7 passes |
+diff --git a/app/brokers/__init__.py b/app/brokers/__init__.py
+index 9136282..ca0c9aa 100644
+--- a/app/brokers/__init__.py
++++ b/app/brokers/__init__.py
+@@ -1,4 +1,8 @@
++from app.brokers.broker_factory import BrokerFactory
++from app.brokers.broker_modes import BrokerMode
++from app.brokers.broker_service import BrokerService
++from app.brokers.mock_broker import MockBroker
+ from app.brokers.paper import PaperBroker
+ from app.brokers.zerodha import ZerodhaBroker
+ 
+-__all__ = ["PaperBroker", "ZerodhaBroker"]
++__all__ = ["BrokerFactory", "BrokerMode", "BrokerService", "MockBroker", "PaperBroker", "ZerodhaBroker"]
+diff --git a/app/brokers/base.py b/app/brokers/base.py
+index 04a9cac..c8f52b2 100644
+--- a/app/brokers/base.py
++++ b/app/brokers/base.py
+@@ -3,11 +3,32 @@ from __future__ import annotations
+ from abc import ABC, abstractmethod
+ from typing import Any
+ 
++from app.core.errors import BrokerError
+ from app.db.models import OrderRequest
+ 
+ 
+ class BaseBroker(ABC):
+-    mode = "UNKNOWN"
++    mode = "unknown"
++    broker_name = "base"
++    read_only = True
++    real_broker = False
++    supports_live_orders = False
++    supports_paper_orders = False
++    supports_order_mutation = False
++
++    def capabilities(self) -> dict[str, Any]:
++        return {
++            "mode": str(getattr(self, "mode", "unknown")).lower(),
++            "broker_name": str(getattr(self, "broker_name", self.__class__.__name__)),
++            "read_only": bool(getattr(self, "read_only", True)),
++            "real_broker": bool(getattr(self, "real_broker", False)),
++            "supports_live_orders": bool(getattr(self, "supports_live_orders", False)),
++            "supports_paper_orders": bool(getattr(self, "supports_paper_orders", False)),
++            "supports_order_mutation": bool(getattr(self, "supports_order_mutation", False)),
++        }
++
++    def reject_mutation(self, action: str = "broker mutation") -> None:
++        raise BrokerError(f"{action} is not allowed in broker mode {self.mode}.")
+ 
+     @abstractmethod
+     def get_quotes(self, symbols: list[str]) -> dict[str, float]: ...
+diff --git a/app/brokers/paper.py b/app/brokers/paper.py
+index 604e0ed..cb7ff5d 100644
+--- a/app/brokers/paper.py
++++ b/app/brokers/paper.py
+@@ -18,6 +18,12 @@ def _now() -> str:
+ 
+ class PaperBroker(BaseBroker):
+     mode = "PAPER"
++    broker_name = "paper"
++    read_only = False
++    real_broker = False
++    supports_live_orders = False
++    supports_paper_orders = True
++    supports_order_mutation = True
+ 
+     def __init__(self, price_provider: Callable[[str], float], database: Database | None = None, risk_manager: RiskManager | None = None) -> None:
+         self.database = database or get_database()
+diff --git a/app/brokers/zerodha.py b/app/brokers/zerodha.py
+index a8d9d86..ca908a4 100644
+--- a/app/brokers/zerodha.py
++++ b/app/brokers/zerodha.py
+@@ -11,6 +11,12 @@ from app.db.models import OrderRequest
+ 
+ class ZerodhaBroker(BaseBroker):
+     mode = "LIVE"
++    broker_name = "zerodha"
++    read_only = False
++    real_broker = True
++    supports_live_orders = True
++    supports_paper_orders = False
++    supports_order_mutation = True
+ 
+     def __init__(self, kite: Any = None) -> None:
+         self.kite = kite
+diff --git a/app/core/config.py b/app/core/config.py
+index 4014230..c855109 100644
+--- a/app/core/config.py
++++ b/app/core/config.py
+@@ -11,6 +11,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
+ @dataclass(frozen=True)
+ class Stage1Config:
+     live_trading_enabled: bool = _env_bool("ALGO_LIVE_TRADING_ENABLED", False)
++    broker_mode: str = os.getenv("ALGO_BROKER_MODE", "live_disabled").strip().lower() or "live_disabled"
+     kill_switch: bool = _env_bool("ALGO_KILL_SWITCH", False)
+     max_order_value: float = float(os.getenv("ALGO_MAX_ORDER_VALUE", "250000"))
+     max_daily_loss: float = float(os.getenv("ALGO_MAX_DAILY_LOSS", "25000"))
+diff --git a/app/routes/broker_routes.py b/app/routes/broker_routes.py
+index 929cc60..ed987f3 100644
+--- a/app/routes/broker_routes.py
++++ b/app/routes/broker_routes.py
+@@ -1,19 +1,68 @@
+ from __future__ import annotations
+ 
+-from flask import Blueprint
++from flask import Blueprint, request
+ 
++from app.brokers.broker_factory import BrokerFactory
++from app.brokers.broker_service import BrokerService
+ from app.core.config import SETTINGS
++from app.core.errors import BrokerError
+ from app.routes.common import failure, success
+ 
+ 
+-def create_broker_blueprint(database):
++def create_broker_blueprint(database, broker_service: BrokerService | None = None):
+     blueprint = Blueprint("broker_api", __name__)
++    service = broker_service or BrokerService(BrokerFactory(database=database))
++
++    def body() -> dict:
++        return request.get_json(silent=True) or {}
++
++    def actor() -> str:
++        return str(body().get("actor", "user")).strip().lower() or "user"
++
++    @blueprint.get("/api/broker/status")
++    def broker_status():
++        return success(service.status())
++
++    @blueprint.get("/api/broker/modes")
++    def broker_modes():
++        return success(service.modes())
++
++    @blueprint.get("/api/broker/mode")
++    def broker_mode():
++        return success(service.mode())
++
++    @blueprint.post("/api/broker/mode")
++    def set_broker_mode():
++        payload = body()
++        try:
++            return success(service.set_mode(str(payload.get("mode", "")), actor()))
++        except PermissionError as exc:
++            return failure(exc, 403)
++        except (BrokerError, ValueError) as exc:
++            return failure(exc, 400)
++
++    @blueprint.get("/api/broker/quotes")
++    def broker_quotes():
++        symbols = request.args.get("symbols", "")
++        return success(service.quotes([symbol for symbol in symbols.split(",") if symbol.strip()]))
++
++    @blueprint.get("/api/broker/funds")
++    def broker_funds():
++        return success(service.funds())
++
++    @blueprint.get("/api/broker/positions")
++    def broker_positions():
++        return success(service.positions())
++
++    @blueprint.get("/api/broker/holdings")
++    def broker_holdings():
++        return success(service.holdings())
+ 
+     @blueprint.post("/api/connect_zerodha")
+     def connect_zerodha():
+         if not SETTINGS.live_trading_enabled:
+             return failure("Live trading is disabled by Stage 1 safety policy.", 403)
+-        return failure("Live broker activation is intentionally unavailable in Stage 1.", 501)
++        return failure("Live broker activation is intentionally unavailable in Stage 7 Batch 2.", 501)
+ 
+     @blueprint.get("/api/logs")
+     def logs(): return success(database.query("SELECT * FROM system_logs ORDER BY created_at DESC LIMIT 250"))

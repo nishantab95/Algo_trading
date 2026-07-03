@@ -11,6 +11,12 @@ from app.db.models import OrderRequest
 
 class ZerodhaBroker(BaseBroker):
     mode = "LIVE"
+    broker_name = "zerodha"
+    read_only = False
+    real_broker = True
+    supports_live_orders = True
+    supports_paper_orders = False
+    supports_order_mutation = True
 
     def __init__(self, kite: Any = None) -> None:
         self.kite = kite
