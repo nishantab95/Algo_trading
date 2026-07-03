@@ -2,10 +2,11 @@ from __future__ import annotations
 
 
 class ReadOnlyTools:
-    def __init__(self,database,profile,dashboards,search,rag,strategy_library=None,combo_library=None,backtests=None,paper=None,trade_history=None,state_provider=None,paper_operations=None,paper_analytics=None,research_experiments=None):
+    def __init__(self,database,profile,dashboards,search,rag,strategy_library=None,combo_library=None,backtests=None,paper=None,trade_history=None,state_provider=None,paper_operations=None,paper_analytics=None,research_experiments=None,broker_safety=None):
         self.database=database; self.profile=profile; self.dashboards=dashboards; self.search=search; self.rag=rag; self.strategies=strategy_library; self.combos=combo_library; self.backtests=backtests; self.paper=paper; self.trade_history=trade_history; self.state_provider=state_provider
         self.paper_operations=paper_operations;self.paper_analytics=paper_analytics
         self.research_experiments=research_experiments
+        self.broker_safety=broker_safety
     def execute(self,name,args=None):
         args=args or {}
         mapping={
@@ -22,6 +23,12 @@ class ReadOnlyTools:
             "get_trade_journal":lambda:{"status":"stage4_annotations_only","entries":self.database.query("SELECT * FROM trade_history_annotations ORDER BY updated_at DESC")},
             "get_watchlists":lambda:self.database.query("SELECT * FROM watchlists ORDER BY updated_at DESC"),
             "get_saved_screeners":lambda:self.database.query("SELECT * FROM saved_screeners ORDER BY updated_at DESC"),"get_latest_signals":lambda:[],
+            "get_broker_status":lambda:self.broker_safety.execute("get_broker_status",args) if self.broker_safety else {},
+            "get_broker_reconciliation_latest":lambda:self.broker_safety.execute("get_broker_reconciliation_latest",args) if self.broker_safety else None,
+            "get_live_readiness":lambda:self.broker_safety.execute("get_live_readiness",args) if self.broker_safety else {},
+            "get_tiny_live_status":lambda:self.broker_safety.execute("get_tiny_live_status",args) if self.broker_safety else {},
+            "get_shadow_live_report":lambda:self.broker_safety.execute("get_shadow_live_report",args) if self.broker_safety else {},
+            "explain_tiny_live_blockers":lambda:self.broker_safety.execute("explain_tiny_live_blockers",args) if self.broker_safety else {},
         }
         if name not in mapping: raise ValueError(f"Read-only tool is not implemented: {name}")
         return mapping[name]()

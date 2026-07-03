@@ -1,4 +1,34 @@
 # Changelog
+## Unreleased - Stage 7 Batch 6 Assistant Broker-Safety Integration
+
+- Added `BrokerSafetyTools` for read-only broker status, reconciliation, readiness, tiny-live status, shadow-live report, and tiny-live blocker explanations.
+- Added assistant draft-only live-safety tools for tiny-live order requests, shadow-live report notes, and live-readiness notes; these drafts are intentionally non-executable through the assistant approval flow.
+- Expanded assistant forbidden tool names and unsafe phrases to block live order placement, live approval, tiny-live unlock, kill-switch deactivation, broker credential changes, reconciliation bypass, live-risk bypass, and approval bypass.
+- Wired broker-safety tools into the existing assistant read-only tool executor and `/api/assistant/tools` registry without granting live mutation paths.
+- Added 13 focused Stage 7 Batch 6 tests. Focused result: `13 passed`; final full result: `319 passed` with the exact project interpreter.
+- Assistant can explain live-safety state and draft notes, but cannot place, approve, unlock, deactivate, or bypass live-safety controls.
+
+## Unreleased - Stage 7 Batch 5 Shadow-Live Mode and Reports
+
+- Added additive migration 11 for persisted `shadow_live_events`.
+- Added `ShadowLiveService` and audit helpers to record intended orders, broker quote, optional paper simulation, live-gate comparison, blocked reason, warnings, spread estimate, and slippage estimate.
+- Added `/api/shadow-live`, `/api/shadow-live/run`, and `/api/shadow-live/report` with consistent envelopes.
+- Shadow-live reads broker quotes through the read-only broker boundary, never calls live `place_order`, never submits a live order, and records missing quotes as fail-closed warnings.
+- Shadow-live can create local paper simulation evidence, but paper fills remain paper records and do not become live fills.
+- Added 11 focused Stage 7 Batch 5 tests. Focused result: `11 passed`; final full result: `306 passed` with the exact project interpreter.
+- Live orders remain disabled. Shadow-live is an audit/reporting comparison layer only.
+
+## Unreleased - Stage 7 Batch 4 Tiny-Live Unlock, Live Risk Manager, and Kill Switch
+
+- Added additive migration 10 for `tiny_live_unlocks`, `live_kill_switch`, `live_risk_events`, and `tiny_live_limits`.
+- Added tiny-live unlock service with 10-minute default expiry, exact phrase validation through injection/environment configuration, failed-attempt logging, hash-only persistence, and manual lock support.
+- Added kill switch states `armed`, `triggered`, and `disabled_for_live_use`; triggered/disabled states block live-like actions, and deactivation requires explicit confirmation.
+- Added strict tiny-live risk limits and persisted preflight audit events covering mode, unlock, broker connection, reconciliation, readiness, kill switch, approval, assistant, value, daily count/value, position, exchange, product, order type, intraday, short-selling, derivative/option, leverage, cash, symbol, quantity, and price sanity checks.
+- Added `/api/tiny-live/status`, `/api/tiny-live/unlock`, `/api/tiny-live/lock`, `/api/tiny-live/limits`, `/api/tiny-live/order/preflight`, `/api/live/kill-switch`, `/api/live/kill-switch/trigger`, and `/api/live/kill-switch/deactivate` with consistent envelopes.
+- Hardened live readiness so initialized Batch 4 services replace the old placeholders while uninitialized contexts still fail closed.
+- Added 17 focused Stage 7 Batch 4 tests. Focused result: `17 passed`; final full result: `295 passed` with the exact project interpreter.
+- Live orders remain disabled. Tiny-live is preflight-only; no route submits a real live order and preflight never calls broker `place_order`.
+
 ## Unreleased - Stage 7 Batch 3 Broker Reconciliation and Live Readiness
 
 - Added additive migration 9 for `broker_reconciliations`, `live_readiness_checks`, and `live_readiness_runs`.

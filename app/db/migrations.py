@@ -431,4 +431,75 @@ MIGRATIONS: list[tuple[int, str]] = [
     CREATE INDEX IF NOT EXISTS idx_live_readiness_checks_name ON live_readiness_checks(check_name, checked_at DESC);
     CREATE INDEX IF NOT EXISTS idx_live_readiness_runs_created ON live_readiness_runs(created_at DESC);
     """),
+
+    (10, """
+    CREATE TABLE IF NOT EXISTS tiny_live_unlocks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        unlock_id TEXT NOT NULL UNIQUE,
+        actor TEXT NOT NULL,
+        status TEXT NOT NULL,
+        phrase_hash TEXT,
+        failure_reason TEXT,
+        expires_at TEXT,
+        locked_at TEXT,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS live_kill_switch (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        switch_id TEXT NOT NULL UNIQUE,
+        state TEXT NOT NULL,
+        reason TEXT NOT NULL DEFAULT '',
+        actor TEXT NOT NULL DEFAULT 'system',
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS live_risk_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id TEXT NOT NULL UNIQUE,
+        mode TEXT NOT NULL,
+        symbol TEXT,
+        side TEXT,
+        quantity INTEGER,
+        order_value REAL NOT NULL DEFAULT 0,
+        status TEXT NOT NULL,
+        checks_json TEXT NOT NULL DEFAULT '[]',
+        rejection_reasons_json TEXT NOT NULL DEFAULT '[]',
+        actor TEXT NOT NULL DEFAULT 'user',
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS tiny_live_limits (
+        id INTEGER PRIMARY KEY CHECK(id=1),
+        limits_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_tiny_live_unlocks_created ON tiny_live_unlocks(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_live_kill_switch_created ON live_kill_switch(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_live_risk_events_created ON live_risk_events(created_at DESC);
+    """),
+
+    (11, """
+    CREATE TABLE IF NOT EXISTS shadow_live_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        shadow_id TEXT NOT NULL UNIQUE,
+        strategy_id TEXT,
+        combo_id TEXT,
+        symbol TEXT NOT NULL,
+        signal_time TEXT NOT NULL,
+        intended_side TEXT NOT NULL,
+        intended_quantity INTEGER NOT NULL,
+        intended_order_type TEXT NOT NULL,
+        paper_order_id TEXT,
+        paper_fill_price REAL,
+        broker_quote_price REAL,
+        spread_estimate REAL,
+        slippage_estimate REAL,
+        would_pass_live_gate INTEGER NOT NULL DEFAULT 0,
+        blocked_reason TEXT NOT NULL DEFAULT '',
+        warnings_json TEXT NOT NULL DEFAULT '[]',
+        live_gate_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_shadow_live_events_created ON shadow_live_events(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_shadow_live_events_symbol ON shadow_live_events(symbol, created_at DESC);
+    """),
+
 ]

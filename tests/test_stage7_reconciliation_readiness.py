@@ -259,7 +259,7 @@ def test_29_migration_idempotency_still_passes(tmp_path):
     database = Database(tmp_path / "idempotent.sqlite3")
     database.initialize(); database.initialize()
     versions = [row["version"] for row in database.query("SELECT version FROM schema_version ORDER BY version")]
-    assert versions[-1] == 9
+    assert versions[-1] == 11
     assert "broker_reconciliations" in {row["name"] for row in database.query("SELECT name FROM sqlite_master WHERE type='table'")}
 
 

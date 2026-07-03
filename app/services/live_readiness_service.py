@@ -17,11 +17,14 @@ from app.services.broker_service import BrokerService
 
 
 class LiveReadinessService:
-    def __init__(self, database: Database | None = None, broker_service: BrokerService | None = None, reconciliation_service: BrokerReconciliationService | None = None, guard: LiveGuard | None = None) -> None:
+    def __init__(self, database: Database | None = None, broker_service: BrokerService | None = None, reconciliation_service: BrokerReconciliationService | None = None, guard: LiveGuard | None = None, kill_switch_service=None, live_risk_manager=None, unlock_service=None) -> None:
         self.database = database or get_database()
         self.broker_service = broker_service or BrokerService()
         self.reconciliation_service = reconciliation_service or BrokerReconciliationService(self.database, self.broker_service)
-        self.guard = guard or LiveGuard(self.reconciliation_service)
+        self.kill_switch_service = kill_switch_service
+        self.live_risk_manager = live_risk_manager
+        self.unlock_service = unlock_service
+        self.guard = guard or LiveGuard(self.reconciliation_service, self.kill_switch_service)
 
     def _check(self, run_id: str, name: str, status: str, severity: str, message: str, details: dict[str, Any] | None = None) -> ReadinessCheck:
         return ReadinessCheck(f"{run_id}_{name}", name, status, severity, message, sanitize_broker_payload(details or {}))
@@ -100,14 +103,36 @@ class LiveReadinessService:
         else:
             checks.append(self._check(run_id, "live_trading_disabled_by_default", "pass", "critical", "Live trading remains disabled by default."))
 
-        checks.append(self._check(run_id, "tiny_live_locked", "pass", "critical", "tiny_live remains locked; Batch 3 does not unlock live trading.", {"tiny_live_mode": broker_mode is BrokerMode.TINY_LIVE}))
+        unlock_status = self.unlock_service.status() if self.unlock_service is not None else {"unlocked": False, "locked": True, "phrase_configured": False}
+        checks.append(self._check(run_id, "tiny_live_locked", "pass", "critical", "Raw live order submission remains locked; Batch 4 exposes preflight only.", {"tiny_live_mode": broker_mode is BrokerMode.TINY_LIVE, "unlock": unlock_status}))
 
-        if broker_mode is BrokerMode.TINY_LIVE:
-            checks.append(self._check(run_id, "kill_switch_placeholder", "fail", "critical", "Tiny-live readiness fails because the Batch 4 kill switch is not implemented yet."))
-            checks.append(self._check(run_id, "risk_limits_placeholder", "fail", "critical", "Tiny-live readiness fails because Batch 4 strict live risk limits are not implemented yet."))
+        if self.kill_switch_service is None:
+            if broker_mode is BrokerMode.TINY_LIVE:
+                checks.append(self._check(run_id, "kill_switch_placeholder", "fail", "critical", "Tiny-live readiness fails because the kill switch service is unavailable."))
+            else:
+                checks.append(self._check(run_id, "kill_switch_placeholder", "warning", "medium", "Kill switch service is not active for this readiness context."))
         else:
-            checks.append(self._check(run_id, "kill_switch_placeholder", "warning", "medium", "Kill switch implementation is deferred to Batch 4."))
-            checks.append(self._check(run_id, "risk_limits_placeholder", "warning", "medium", "Strict live risk limits are deferred to Batch 4."))
+            kill_status = self.kill_switch_service.status()
+            checks.append(
+                self._check(
+                    run_id,
+                    "kill_switch_armed_not_triggered",
+                    "pass" if kill_status.get("state") == "armed" and not kill_status.get("triggered") else "fail",
+                    "critical",
+                    "Kill switch must be armed and not triggered for tiny-live preflight.",
+                    kill_status,
+                )
+            )
+
+        if self.live_risk_manager is None:
+            if broker_mode is BrokerMode.TINY_LIVE:
+                checks.append(self._check(run_id, "risk_limits_placeholder", "fail", "critical", "Tiny-live readiness fails because strict live risk limits are unavailable."))
+            else:
+                checks.append(self._check(run_id, "risk_limits_placeholder", "warning", "medium", "Strict live risk limits are not active for this readiness context."))
+        else:
+            limits = self.live_risk_manager.limits()
+            limits_ok = bool(limits) and limits.get("max_order_value", 0) <= 1000 and limits.get("max_orders_per_day", 99) <= 2
+            checks.append(self._check(run_id, "risk_limits_configured", "pass" if limits_ok else "fail", "critical", "Strict tiny-live risk limits must be configured before preflight.", limits))
 
         try:
             self.guard.assert_assistant_cannot_live_trade("assistant")
@@ -141,16 +166,21 @@ class LiveReadinessService:
         critical_failures = [check.to_dict() for check in checks if check.status == "fail" and check.severity == "critical"]
         warnings = [check.to_dict() for check in checks if check.status in {"warning", "not_checked"}]
         overall = overall_readiness_status(checks)
+        tiny_live_ready = broker_mode is BrokerMode.TINY_LIVE and not critical_failures and self.kill_switch_service is not None and self.live_risk_manager is not None
+        if tiny_live_ready:
+            message = "Ready for tiny-live risk preflight only; live order submission remains disabled."
+        else:
+            message = "Ready for next safety batch only." if overall in {"passed", "warning"} and not critical_failures else "Live readiness failed closed."
         result = {
             "run_id": run_id,
             "mode": broker_mode.value,
             "overall_status": overall,
-            "message": "Ready for next safety batch only." if overall in {"passed", "warning"} and not critical_failures else "Live readiness failed closed.",
+            "message": message,
             "checks": [check.to_dict() for check in checks],
             "critical_failures": critical_failures,
             "warnings": warnings,
             "live_orders_allowed": False,
-            "tiny_live_ready": False,
+            "tiny_live_ready": tiny_live_ready,
             "created_at": utc_now(),
         }
         self._persist(run_id, broker_mode.value, overall, checks, critical_failures, warnings)

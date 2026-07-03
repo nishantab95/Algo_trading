@@ -1128,3 +1128,206 @@ Readiness never declares live trading ready in Batch 3. Live-like modes require 
 - Batch 8: Stage 7 final verification.
 
 Stage 7 Batch 3 is complete. Batch 4 can begin.
+
+## Stage 7 Batch 4 - Tiny-Live Unlock, Live Risk Manager, and Kill Switch
+
+**Batch date/time:** 2026-07-03 Asia/Calcutta
+
+**Exact interpreter:** `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe`
+
+**Python version:** 3.10.11
+
+**Commands run**
+
+```powershell
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage7_tiny_live_kill_switch.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import main; app=main.create_flask_app(); client=app.test_client(); ..."
+```
+
+**Test results**
+
+- Focused Stage 7 Batch 4 pytest: `17 passed in 3.76s`.
+- Final full pytest after Batch 4: `295 passed in 32.17s`.
+- API smoke: composed app exposed 149 routes; `/api/live/kill-switch`, `/api/tiny-live/status`, and `/api/tiny-live/limits` returned HTTP 200; `/api/tiny-live/order/preflight` returned HTTP 200 with a rejected risk result and no submission; unconfirmed `/api/live/kill-switch/deactivate` returned HTTP 403.
+- UI smoke: no Batch 7 broker safety UI yet; this batch only exposes safe JSON APIs and service boundaries.
+
+**Tiny-live gate**
+
+Batch 4 adds `TinyLiveUnlockService`, `TinyLiveService`, `LiveRiskManager`, and `KillSwitchService`. The app starts locked. Production unlock validation reads the expected phrase from service injection or `ALGO_TINY_LIVE_UNLOCK_PHRASE`; the raw phrase is not hard-coded in production source and is not persisted. Unlock attempts store status, hashes, expiry/lock metadata, and failure reasons. Default unlock timeout is 10 minutes.
+
+Default tiny-live limits are fail-closed and intentionally small: max order value INR 1000, max daily value INR 2000, max two approved preflights per day, max one open live position, max live position value INR 1000, CNC only, NSE only, market/limit only, no intraday, no short selling, no derivatives/options, and no leverage.
+
+**Risk checks**
+
+`POST /api/tiny-live/order/preflight` returns a risk decision only. It never calls `broker.place_order`, never submits a live order, and persists every preflight in `live_risk_events`. Checks cover tiny-live mode, unlock/expiry, broker connectivity, reconciliation, readiness critical failures, kill switch state, explicit user approval, assistant restrictions, order value, daily value/count, open positions/value, exchange/product/order type, intraday, short selling, derivatives/options, leverage, cash, symbol, quantity, and price sanity.
+
+**Kill switch**
+
+The kill switch defaults to `armed`. `triggered` and `disabled_for_live_use` both block live-like actions. Deactivation requires explicit confirmation and intentionally records `disabled_for_live_use` rather than enabling live trading. Assistant actors cannot unlock tiny-live, approve a tiny-live preflight, or deactivate the kill switch.
+
+**Database and migrations**
+
+Additive migration 10 creates `tiny_live_unlocks`, `live_kill_switch`, `live_risk_events`, and `tiny_live_limits`. Migration idempotency now expects versions 1 through 10 and passed in the full suite.
+
+**Files changed**
+
+- `app/db/migrations.py`
+- `app/live/__init__.py`
+- `app/live/kill_switch.py`
+- `app/live/live_guard.py`
+- `app/live/live_risk.py`
+- `app/live/tiny_live_service.py`
+- `app/live/unlock.py`
+- `app/routes/live_routes.py`
+- `app/routes/tiny_live_routes.py`
+- `app/services/live_readiness_service.py`
+- `main.py`
+- `tests/test_database.py`
+- `tests/test_stage7_reconciliation_readiness.py`
+- `tests/test_stage7_tiny_live_kill_switch.py`
+
+**Safety result**
+
+- Live orders allowed: no.
+- Tiny-live preflight submits live orders: no.
+- Broker `place_order` called by preflight tests: no.
+- Raw unlock phrase stored: no.
+- Broker secrets stored: no.
+- ML/DL trading model added: no.
+
+**Remaining Stage 7 work**
+
+- Batch 5: shadow-live mode and reports.
+- Batch 6: assistant broker-safety integration.
+- Batch 7: broker safety UI.
+- Batch 8: final Stage 7 verification and acceptance report.
+
+Stage 7 Batch 4 is complete. Batch 5 can begin.
+
+## Stage 7 Batch 5 - Shadow-Live Mode and Reports
+
+**Batch date/time:** 2026-07-03 Asia/Calcutta
+
+**Exact interpreter:** `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe`
+
+**Python version:** 3.10.11
+
+**Commands run**
+
+```powershell
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage7_shadow_live.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import main; app=main.create_flask_app(); client=app.test_client(); ..."
+```
+
+**Test results**
+
+- Focused Stage 7 Batch 5 pytest: `11 passed in 4.96s`.
+- Final full pytest after Batch 5: `306 passed in 59.98s`.
+- API smoke: composed app exposed 152 routes; `/api/shadow-live` and `/api/shadow-live/report` returned HTTP 200; `/api/shadow-live/run` returned HTTP 200 with `live_order_submitted: false`.
+- UI smoke: no Batch 7 broker safety UI yet; this batch only exposes safe JSON APIs and persisted report data.
+
+**Shadow-live model**
+
+Batch 5 adds `ShadowLiveService`, `live_audit` helpers, `/api/shadow-live` routes, and additive migration 11 for `shadow_live_events`. A shadow run records the intended order, broker quote, optional paper simulation result, live-gate comparison, warnings, blocked reason, slippage estimate, and spread estimate. It never submits a live order and never calls the read-only broker's `place_order` path.
+
+Shadow-live uses safe broker read-only quotes. Missing or zero quotes fail safely and are recorded as `broker_quote_unavailable`. Paper simulation is allowed only as local paper simulation evidence; paper fills remain paper rows and do not become live fills. The live gate comparison calls the existing Batch 4 risk preflight and records `would_pass_live_gate` plus rejection reasons.
+
+**Routes**
+
+- `GET /api/shadow-live`
+- `POST /api/shadow-live/run`
+- `GET /api/shadow-live/report`
+
+The report aggregates event count, blocked count, paper simulated count, average slippage estimate, and blocked reasons.
+
+**Files changed**
+
+- `app/db/migrations.py`
+- `app/live/__init__.py`
+- `app/live/live_audit.py`
+- `app/live/shadow_live_service.py`
+- `app/routes/shadow_live_routes.py`
+- `main.py`
+- `tests/test_database.py`
+- `tests/test_stage7_reconciliation_readiness.py`
+- `tests/test_stage7_tiny_live_kill_switch.py`
+- `tests/test_stage7_shadow_live.py`
+
+**Safety result**
+
+- Shadow-live submits live orders: no.
+- Shadow-live calls live broker `place_order`: no.
+- Paper fills become live fills: no.
+- Missing quote fails safely: yes.
+- Live gate comparison is fail-closed: yes.
+- Broker secrets stored: no.
+- ML/DL trading model added: no.
+
+**Remaining Stage 7 work**
+
+- Batch 6: assistant broker-safety integration.
+- Batch 7: broker safety UI.
+- Batch 8: final Stage 7 verification and acceptance report.
+
+Stage 7 Batch 5 is complete. Batch 6 can begin.
+
+## Stage 7 Batch 6 - Assistant Broker-Safety Integration
+
+**Batch date/time:** 2026-07-03 Asia/Calcutta
+
+**Exact interpreter:** `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe`
+
+**Python version:** 3.10.11
+
+**Commands run**
+
+```powershell
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage7_assistant_broker_safety.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import main; app=main.create_flask_app(); client=app.test_client(); ..."
+```
+
+**Test results**
+
+- Focused Stage 7 Batch 6 pytest: `13 passed in 4.40s`.
+- Final full pytest after Batch 6: `319 passed in 61.44s`.
+- API smoke: `/api/assistant/tools` returned HTTP 200; safe broker status tooling is present; forbidden unlock/deactivate tool names are absent.
+- UI smoke: no Batch 7 broker safety UI yet; assistant tool visibility is API-verified.
+
+**Assistant broker-safety tools**
+
+Batch 6 adds `BrokerSafetyTools` and wires it into `ReadOnlyTools`. The assistant can read broker status, latest reconciliation, latest live readiness, tiny-live status, shadow-live report summaries, and a deterministic tiny-live blocker explanation. These are read-only views over already-safe service boundaries.
+
+Batch 6 also adds draft-only tool names for tiny-live order requests, shadow-live report notes, and live-readiness notes. These drafts are deliberately non-executable: their risk check is stored as not approved, so even a user approval attempt cannot execute them through the assistant draft system.
+
+**Forbidden assistant behavior**
+
+The registry and guardrails now explicitly block live-order placement, live-order approval, tiny-live unlock, kill-switch deactivation, broker credential modification, reconciliation bypass, live-risk bypass, live enablement, and approval bypass. Tests verify forbidden tool names are rejected, unsafe phrases are refused, assistant actors cannot unlock/deactivate directly, and assistant tool calls do not call broker `place_order`.
+
+**Files changed**
+
+- `app/assistant/guardrails.py`
+- `app/assistant/tool_executor.py`
+- `app/assistant/tool_registry.py`
+- `app/assistant/tools/broker_safety_tools.py`
+- `app/assistant/tools/readonly_tools.py`
+- `main.py`
+- `tests/test_stage7_assistant_broker_safety.py`
+
+**Safety result**
+
+- Assistant can explain broker/readiness/tiny-live/shadow-live state: yes.
+- Assistant can draft live-safety notes/requests: yes, draft-only and non-executable.
+- Assistant can place/approve/unlock/deactivate live actions: no.
+- Assistant tool calls broker `place_order`: no.
+- Broker secrets stored: no.
+- ML/DL trading model added: no.
+
+**Remaining Stage 7 work**
+
+- Batch 7: broker safety UI.
+- Batch 8: final Stage 7 verification and acceptance report.
+
+Stage 7 Batch 6 is complete. Batch 7 can begin.

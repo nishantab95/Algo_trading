@@ -30,6 +30,8 @@ from app.core.config import SETTINGS
 from app.core.logging_config import log_event
 from app.routes.broker_routes import create_broker_blueprint
 from app.routes.live_routes import create_live_blueprint
+from app.routes.tiny_live_routes import create_tiny_live_blueprint
+from app.routes.shadow_live_routes import create_shadow_live_blueprint
 from app.routes.backtest_routes import create_backtest_blueprint
 from app.routes.strategy_library_routes import create_strategy_library_blueprint
 from app.routes.combo_strategy_routes import create_combo_strategy_blueprint
@@ -55,11 +57,17 @@ from app.services.broker_service import BrokerService
 from app.services.broker_reconciliation_service import BrokerReconciliationService
 from app.services.live_readiness_service import LiveReadinessService
 from app.live.live_guard import LiveGuard
+from app.live.kill_switch import KillSwitchService
+from app.live.unlock import TinyLiveUnlockService
+from app.live.live_risk import LiveRiskManager
+from app.live.tiny_live_service import TinyLiveService
+from app.live.shadow_live_service import ShadowLiveService
 from app.assistant.action_drafts import ActionDraftService
 from app.assistant.service import AssistantService
 from app.assistant.tool_registry import ToolRegistry
 from app.assistant.tool_executor import ToolExecutor
 from app.assistant.tools.readonly_tools import ReadOnlyTools
+from app.assistant.tools.broker_safety_tools import BrokerSafetyTools
 from app.assistant.tools.trade_history_tools import TradeHistoryService
 from app.backtesting.models import BacktestConfig
 from app.dashboard_builder.dashboard_service import DashboardService
@@ -316,8 +324,13 @@ _DATABASE = _FOUNDATION["database"]
 _BROKER_FACTORY = BrokerFactory(bot.TRADING_ENGINE._latest_price_from_csv, _DATABASE)
 _BROKER_SERVICE = BrokerService(_BROKER_FACTORY)
 _BROKER_RECONCILIATION = BrokerReconciliationService(_DATABASE, _BROKER_SERVICE)
-_LIVE_GUARD = LiveGuard(_BROKER_RECONCILIATION)
-_LIVE_READINESS = LiveReadinessService(_DATABASE, _BROKER_SERVICE, _BROKER_RECONCILIATION, _LIVE_GUARD)
+_KILL_SWITCH = KillSwitchService(_DATABASE)
+_TINY_UNLOCK = TinyLiveUnlockService(_DATABASE)
+_LIVE_GUARD = LiveGuard(_BROKER_RECONCILIATION, _KILL_SWITCH)
+_LIVE_READINESS = LiveReadinessService(_DATABASE, _BROKER_SERVICE, _BROKER_RECONCILIATION, _LIVE_GUARD, _KILL_SWITCH, None, _TINY_UNLOCK)
+_LIVE_RISK = LiveRiskManager(_DATABASE, _BROKER_SERVICE, _BROKER_RECONCILIATION, _LIVE_READINESS, _TINY_UNLOCK, _KILL_SWITCH)
+_LIVE_READINESS.live_risk_manager = _LIVE_RISK
+_TINY_LIVE = TinyLiveService(_BROKER_SERVICE, _TINY_UNLOCK, _LIVE_RISK, _KILL_SWITCH)
 _STRATEGY_SERVICE = _FOUNDATION["strategies"]
 _DATA_SERVICE = DataService()
 _REPORT_SERVICE = ReportService(_DATABASE)
@@ -337,14 +350,16 @@ _PAPER_OPERATIONS = PaperOperationsBroker(_DATABASE, bot.TRADING_ENGINE._latest_
 _PAPER_ANALYTICS = PaperAnalytics(_PAPER_OPERATIONS)
 _PAPER_PORTFOLIO = PaperPortfolioService(_PAPER_OPERATIONS)
 _PAPER_REPORTS = PaperReportService(_PAPER_OPERATIONS,_PAPER_ANALYTICS,PROJECT_ROOT)
+_SHADOW_LIVE = ShadowLiveService(_DATABASE, _BROKER_SERVICE, _LIVE_RISK, _PAPER_OPERATIONS)
 _RESEARCH_EXPERIMENTS = ResearchExperimentService(_DATABASE)
 _RESEARCH_DECISIONS = ResearchDecisionService(_DATABASE)
 _RESEARCH_RUNNER = ResearchExperimentRunner(_DATABASE,_RESEARCH_EXPERIMENTS,_BACKTEST_SERVICE)
 _RESEARCH_EXPORTS = ResearchExportService(_DATABASE,PROJECT_ROOT)
 _TOOL_REGISTRY = ToolRegistry()
+_BROKER_SAFETY_TOOLS = BrokerSafetyTools(_BROKER_SERVICE, _BROKER_RECONCILIATION, _LIVE_READINESS, _TINY_LIVE, _SHADOW_LIVE, _KILL_SWITCH)
 _READONLY_TOOLS = ReadOnlyTools(_DATABASE, _PROFILE_SERVICE, _DASHBOARD_SERVICE, _APP_SEARCH_SERVICE, _RAG_RETRIEVER,
                                 _STRATEGY_LIBRARY, _COMBO_SERVICE, _BACKTEST_SERVICE, _PAPER_SERVICE,
-                                _TRADE_HISTORY_SERVICE, lambda: _stage1_state_payload(),_PAPER_OPERATIONS,_PAPER_ANALYTICS,_RESEARCH_EXPERIMENTS)
+                                _TRADE_HISTORY_SERVICE, lambda: _stage1_state_payload(),_PAPER_OPERATIONS,_PAPER_ANALYTICS,_RESEARCH_EXPERIMENTS,_BROKER_SAFETY_TOOLS)
 
 
 def _run_approved_backtest(payload): return _BACKTEST_SERVICE.run(BacktestConfig(**payload)).summary()
@@ -508,7 +523,9 @@ def create_flask_app():
     app.register_blueprint(create_strategy_blueprint(_STRATEGY_SERVICE))
     app.register_blueprint(create_paper_blueprint(_PAPER_SERVICE, _run_stage1_paper_scan))
     app.register_blueprint(create_broker_blueprint(_DATABASE, _BROKER_SERVICE, _BROKER_RECONCILIATION))
-    app.register_blueprint(create_live_blueprint(_LIVE_READINESS))
+    app.register_blueprint(create_live_blueprint(_LIVE_READINESS, _KILL_SWITCH))
+    app.register_blueprint(create_tiny_live_blueprint(_TINY_LIVE))
+    app.register_blueprint(create_shadow_live_blueprint(_SHADOW_LIVE))
     app.register_blueprint(create_backtest_blueprint(_BACKTEST_SERVICE))
     app.register_blueprint(create_strategy_library_blueprint(_STRATEGY_LIBRARY, _BACKTEST_SERVICE))
     app.register_blueprint(create_combo_strategy_blueprint(_COMBO_SERVICE, _BACKTEST_SERVICE))
