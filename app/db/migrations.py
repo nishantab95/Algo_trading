@@ -387,4 +387,48 @@ MIGRATIONS: list[tuple[int, str]] = [
     CREATE INDEX IF NOT EXISTS idx_walk_forward_experiment ON walk_forward_folds(experiment_id,fold_number);
     CREATE INDEX IF NOT EXISTS idx_robustness_experiment ON robustness_results(experiment_id,scenario_name);
     """),
+
+    (9, """
+    CREATE TABLE IF NOT EXISTS broker_reconciliations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reconciliation_id TEXT NOT NULL UNIQUE,
+        mode TEXT NOT NULL,
+        broker TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        completed_at TEXT NOT NULL,
+        status TEXT NOT NULL,
+        funds_status TEXT NOT NULL,
+        positions_status TEXT NOT NULL,
+        orders_status TEXT NOT NULL,
+        trades_status TEXT NOT NULL,
+        mismatches_json TEXT NOT NULL DEFAULT '[]',
+        warnings_json TEXT NOT NULL DEFAULT '[]',
+        errors_json TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS live_readiness_checks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        check_id TEXT NOT NULL UNIQUE,
+        check_name TEXT NOT NULL,
+        status TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        message TEXT NOT NULL,
+        details_json TEXT NOT NULL DEFAULT '{}',
+        checked_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS live_readiness_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_id TEXT NOT NULL UNIQUE,
+        mode TEXT NOT NULL,
+        overall_status TEXT NOT NULL,
+        checks_json TEXT NOT NULL DEFAULT '[]',
+        critical_failures_json TEXT NOT NULL DEFAULT '[]',
+        warnings_json TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_broker_reconciliations_created ON broker_reconciliations(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_live_readiness_checks_name ON live_readiness_checks(check_name, checked_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_live_readiness_runs_created ON live_readiness_runs(created_at DESC);
+    """),
 ]

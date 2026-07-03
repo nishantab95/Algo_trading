@@ -29,6 +29,7 @@ from app import bootstrap_application
 from app.core.config import SETTINGS
 from app.core.logging_config import log_event
 from app.routes.broker_routes import create_broker_blueprint
+from app.routes.live_routes import create_live_blueprint
 from app.routes.backtest_routes import create_backtest_blueprint
 from app.routes.strategy_library_routes import create_strategy_library_blueprint
 from app.routes.combo_strategy_routes import create_combo_strategy_blueprint
@@ -49,6 +50,11 @@ from app.services.strategy_library_service import StrategyLibraryService
 from app.services.combo_strategy_service import ComboStrategyService
 from app.services.paper_trading_service import PaperTradingService
 from app.services.report_service import ReportService
+from app.brokers.broker_factory import BrokerFactory
+from app.services.broker_service import BrokerService
+from app.services.broker_reconciliation_service import BrokerReconciliationService
+from app.services.live_readiness_service import LiveReadinessService
+from app.live.live_guard import LiveGuard
 from app.assistant.action_drafts import ActionDraftService
 from app.assistant.service import AssistantService
 from app.assistant.tool_registry import ToolRegistry
@@ -307,6 +313,11 @@ def _create_legacy_flask_app():
 # Stage 1 application services are initialized once and backed by SQLite.
 _FOUNDATION = bootstrap_application()
 _DATABASE = _FOUNDATION["database"]
+_BROKER_FACTORY = BrokerFactory(bot.TRADING_ENGINE._latest_price_from_csv, _DATABASE)
+_BROKER_SERVICE = BrokerService(_BROKER_FACTORY)
+_BROKER_RECONCILIATION = BrokerReconciliationService(_DATABASE, _BROKER_SERVICE)
+_LIVE_GUARD = LiveGuard(_BROKER_RECONCILIATION)
+_LIVE_READINESS = LiveReadinessService(_DATABASE, _BROKER_SERVICE, _BROKER_RECONCILIATION, _LIVE_GUARD)
 _STRATEGY_SERVICE = _FOUNDATION["strategies"]
 _DATA_SERVICE = DataService()
 _REPORT_SERVICE = ReportService(_DATABASE)
@@ -496,7 +507,8 @@ def create_flask_app():
     app.register_blueprint(create_data_blueprint(_REPORT_SERVICE))
     app.register_blueprint(create_strategy_blueprint(_STRATEGY_SERVICE))
     app.register_blueprint(create_paper_blueprint(_PAPER_SERVICE, _run_stage1_paper_scan))
-    app.register_blueprint(create_broker_blueprint(_DATABASE))
+    app.register_blueprint(create_broker_blueprint(_DATABASE, _BROKER_SERVICE, _BROKER_RECONCILIATION))
+    app.register_blueprint(create_live_blueprint(_LIVE_READINESS))
     app.register_blueprint(create_backtest_blueprint(_BACKTEST_SERVICE))
     app.register_blueprint(create_strategy_library_blueprint(_STRATEGY_LIBRARY, _BACKTEST_SERVICE))
     app.register_blueprint(create_combo_strategy_blueprint(_COMBO_SERVICE, _BACKTEST_SERVICE))

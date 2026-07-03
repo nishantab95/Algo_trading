@@ -1,4 +1,14 @@
 # Changelog
+## Unreleased - Stage 7 Batch 3 Broker Reconciliation and Live Readiness
+
+- Added additive migration 9 for `broker_reconciliations`, `live_readiness_checks`, and `live_readiness_runs`.
+- Added persisted broker reconciliation with fail-closed broker-unavailable, stale-state, cash, quantity, missing-broker, unknown, and status-mismatch handling.
+- Added safe local live-state placeholders and shadow-live paper state hooks for later batches without creating any live-order path.
+- Added `LiveGuard` and persisted readiness checks covering prior-stage markers, broker mode/read-only state, reconciliation, live-disabled default, tiny-live lock, Batch 4 placeholders, assistant restrictions, no live fallback to paper, secret hygiene, and no ML/DL prediction dependency.
+- Added reconciliation APIs and readiness APIs with consistent envelopes; no route submits a live order, unlocks tiny-live, or changes broker credentials.
+- Added 30 focused Stage 7 Batch 3 tests. Focused result: `30 passed`; final full result: `278 passed` with the exact project interpreter.
+- Live orders remain disabled. Tiny-live remains blocked/not ready until Batch 4 implements unlock, strict limits, live risk manager, and kill switch.
+
 ## Unreleased - Stage 7 Batch 2 Broker Modes and Broker Factory
 
 - Added explicit broker modes: `live_disabled`, `paper`, `broker_readonly`, `shadow_live`, and `tiny_live`, defaulting to `live_disabled`.

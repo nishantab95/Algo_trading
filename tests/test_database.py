@@ -20,4 +20,4 @@ def test_database_migrations_are_idempotent(tmp_path):
     first = database.query("SELECT version, applied_at FROM schema_version ORDER BY version")
     database.initialize()
     second = database.query("SELECT version, applied_at FROM schema_version ORDER BY version")
-    assert first == second and [row["version"] for row in second] == list(range(1, 9))
+    assert first == second and [row["version"] for row in second] == list(range(1, 10))

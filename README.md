@@ -393,3 +393,69 @@ git status --short > .codex_backups\pre_stage7_batch2_broker_modes_status.txt
 - Batch 8: Stage 7 final verification.
 
 Stage 7 Batch 2 is complete. Batch 3 can begin.
+
+## Stage 7 Batch 3 - Broker Reconciliation and Live Readiness
+
+**Batch date/time:** 2026-07-03 Asia/Calcutta
+
+**Exact interpreter:** `C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe`
+
+**Python version:** 3.10.11
+
+**Pre-batch verification:** Full pytest passed before Batch 3 work with `248 passed in 33.28s`. Stage 7 Batch 2 focused broker-mode tests passed with `26 passed in 5.84s`.
+
+**Commands run**
+
+```powershell
+git status --short
+New-Item -ItemType Directory -Force -Path .codex_backups
+git diff --output=.codex_backups\pre_stage7_batch3_reconciliation_readiness.patch
+git status --short > .codex_backups\pre_stage7_batch3_reconciliation_readiness_status.txt
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import sys; print(sys.executable); print(sys.version)"
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage7_broker_modes.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage7_reconciliation_readiness.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_database.py -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
+& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import main; app=main.create_flask_app(); client=app.test_client(); ..."
+```
+
+**Test results**
+
+- Focused Stage 7 Batch 3 pytest: `30 passed in 8.48s`.
+- Database migration focused pytest: `2 passed in 1.01s`.
+- Final full pytest: `278 passed in 46.34s`.
+- API smoke: `/api/broker/reconcile`, `/api/broker/reconciliation/latest`, `/api/broker/reconciliation/history`, `/api/live/readiness`, and `/api/live/readiness/check` returned HTTP 200; composed app exposed 140 routes.
+- UI smoke: not applicable in Batch 3; broker safety UI remains Batch 7 work.
+
+**Reconciliation model**
+
+Batch 3 adds persisted broker reconciliation runs in `broker_reconciliations`. Reconciliation covers broker funds, holdings, positions, orders, trades, local live placeholders, and shadow-live paper account/positions when applicable. Item statuses include `matched`, `missing_local`, `missing_broker`, `quantity_mismatch`, `price_mismatch`, `status_mismatch`, `cash_mismatch`, `stale_broker_state`, `broker_unavailable`, `not_applicable`, and `unknown`. Overall statuses are `passed`, `warning`, `failed`, and `not_checked`.
+
+Fail-closed behavior is explicit: broker-unavailable, unknown, cash mismatch, quantity mismatch, missing expected broker state, stale broker state, and order status mismatch fail reconciliation. Broker-side positions/orders missing locally are warnings by default unless a later batch chooses to escalate them.
+
+**Live readiness checks**
+
+Batch 3 adds persisted readiness checks and runs in `live_readiness_checks` and `live_readiness_runs`. Checks cover Stage 1-6 verification markers, broker mode validity, broker read-only availability, broker reconciliation status, live-disabled default, tiny-live lock, Batch 4 kill-switch/risk placeholders, assistant live-trade restrictions, no live fallback to paper, broker-secret hygiene, no ML/DL prediction dependency, and test-suite evidence.
+
+Readiness never declares live trading ready in Batch 3. Live-like modes require a passing reconciliation. `tiny_live` remains blocked/not ready because unlock, strict live risk limits, and kill switch are Batch 4 work.
+
+**Safety result**
+
+- Broker disconnected or read failure: reconciliation fails closed and persists the failure.
+- `paper` mode: broker reconciliation is not required and does not call live broker state.
+- `broker_readonly`, `shadow_live`, and `tiny_live`: broker read-only access and reconciliation are required.
+- `tiny_live`: reconciliation can pass, but live readiness still fails and live orders remain blocked.
+- Assistant live action: blocked by `LiveGuard`; assistant cannot place, approve, or route live orders.
+- Secrets: reconciliation/readiness persistence stores sanitized JSON only and tests verify no broker secret values are persisted.
+- Live orders allowed: no.
+
+**Remaining Stage 7 work**
+
+- Batch 4: tiny-live unlock, strict limits, live risk manager, and kill switch.
+- Batch 5: shadow-live reporting.
+- Batch 6: assistant broker-safety integration.
+- Batch 7: broker safety UI.
+- Batch 8: Stage 7 final verification.
+
+Stage 7 Batch 3 is complete. Batch 4 can begin.
