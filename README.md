@@ -321,7 +321,7 @@ Acceptance result on 2026-06-24: 222 tests passed with Python 3.10.11 from the e
 Stage 7 should not begin yet. Browser UI gate is incomplete.
 This software provides historical simulation and paper-trading research only. It offers no profit guarantee, and no Stage 1â€“6 result authorizes live trading.
 
-## Stage 7 Batch 2 - Broker modes and broker factory
+## Stage 7 Batch 2 - Broker Modes and Broker Factory
 
 **Batch date/time:** 2026-07-03 Asia/Calcutta
 
@@ -329,17 +329,16 @@ This software provides historical simulation and paper-trading research only. It
 
 **Python version:** 3.10.11
 
-**Detected before work:** Stage 7 Batch 2 was `NOT IMPLEMENTED`. The required Batch 2 broker-mode/factory files and `tests/test_stage7_broker_modes.py` were missing. Batches 3-8 were also not implemented in the current repo.
+**Detected before final hardening:** Stage 7 Batch 2 was `PARTIAL`. Broker modes, a basic factory, a basic mock broker, a route surface, and 12 focused tests already existed from the first pass, but the stricter Batch 2 checklist was incomplete. Missing or incomplete pieces included `app/brokers/broker_errors.py`, `app/brokers/broker_models.py`, the canonical `app/services/broker_service.py`, the full BaseBroker read/mutation surface, richer MockBroker state/rejection tracking, the full safe broker read API set, and the requested 26 focused behavior tests.
 
 **Commands run**
 
 ```powershell
 git status --short
 New-Item -ItemType Directory -Force -Path .codex_backups
-git diff --output=.codex_backups\pre_codex55_high_thinking.patch
-git status --short > .codex_backups\pre_codex55_high_thinking_status.txt
+git diff --output=.codex_backups\pre_stage7_batch2_broker_modes.patch
+git status --short > .codex_backups\pre_stage7_batch2_broker_modes_status.txt
 & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -c "import sys; print(sys.executable); print(sys.version)"
-& "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pip --version
 & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
 & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest tests/test_stage7_broker_modes.py -q
 & "C:\Users\nisha\AI_ML_PROJECTS\algo_project\algo_env\Scripts\python.exe" -m pytest -q
@@ -348,16 +347,28 @@ git status --short > .codex_backups\pre_codex55_high_thinking_status.txt
 
 **Test results**
 
-- Baseline full pytest before Batch 2 work: `222 passed in 44.45s`.
-- Focused Stage 7 Batch 2 pytest: `12 passed in 3.47s`.
-- Final full pytest after Batch 2 work: `234 passed in 46.14s`.
-- API smoke: `/api/broker/status`, `/api/broker/modes`, `/api/broker/mode`, `/api/broker/funds`, `/api/broker/positions`, and `/api/broker/holdings` returned HTTP 200; assistant tiny-live mode switch returned HTTP 403; composed app exposed 131 routes.
+- Baseline full pytest before final Batch 2 hardening: `234 passed in 25.08s`.
+- Focused Stage 7 Batch 2 pytest after hardening: `26 passed in 6.25s`.
+- Final full pytest after hardening: `248 passed in 37.88s`.
+- API smoke: `/api/broker/status` and `/api/broker/mode` returned HTTP 200; invalid mode returned HTTP 400; switching to `broker_readonly` returned HTTP 200; `/api/broker/profile`, `/api/broker/funds`, `/api/broker/holdings`, `/api/broker/positions`, `/api/broker/orders`, `/api/broker/trades`, and `/api/broker/quote/TCS` returned HTTP 200 in read-only mock mode; assistant tiny-live mode switch returned HTTP 403; `/api/connect_zerodha` returned HTTP 403; composed app exposed 135 routes.
 - UI smoke: not applicable in Batch 2; no broker safety UI was implemented in this batch.
+
+**Broker modes and boundaries**
+
+- Modes implemented: `live_disabled`, `paper`, `broker_readonly`, `shadow_live`, and `tiny_live`.
+- Default mode: `live_disabled`.
+- Live order status: no Batch 2 mode allows real live orders.
+- Read-only status: `broker_readonly`, `shadow_live`, and `tiny_live` can expose mock/read-only broker state; `live_disabled` rejects broker read access.
+- Paper boundary: `paper` mode can use the existing local `PaperBroker`; `shadow_live` can pass paper-permission checks for future shadow comparisons, but live-order attempts never fall back into paper fills.
+- Assistant restriction: assistant actors cannot switch to `tiny_live` or other live-like modes and cannot execute broker actions.
+- Secrets: broker status/models sanitize secret-shaped fields and do not store broker credentials.
 
 **Files changed**
 
 - `app/core/config.py`
 - `app/brokers/base.py`
+- `app/brokers/broker_errors.py`
+- `app/brokers/broker_models.py`
 - `app/brokers/broker_modes.py`
 - `app/brokers/mock_broker.py`
 - `app/brokers/broker_factory.py`
@@ -365,18 +376,20 @@ git status --short > .codex_backups\pre_codex55_high_thinking_status.txt
 - `app/brokers/paper.py`
 - `app/brokers/zerodha.py`
 - `app/brokers/__init__.py`
+- `app/services/broker_service.py`
 - `app/routes/broker_routes.py`
 - `tests/test_stage7_broker_modes.py`
 - `README.md`
 - `TECHNICAL_REPORT.md`
 - `CHANGELOG.md`
 
-**Safety result**
-
-The broker mode default is `live_disabled`. The supported modes are `live_disabled`, `paper`, `broker_readonly`, `shadow_live`, and `tiny_live`. The Stage 7 Batch 2 broker factory never returns `ZerodhaBroker`; paper mode uses the local `PaperBroker`, while all non-paper modes use `MockBroker` and reject order mutation fail-closed. Tiny-live is present but locked for live orders. The assistant cannot switch broker modes or execute broker actions. No live orders are allowed, no real Zerodha APIs are called, and no broker secrets are stored or exposed by the new status APIs.
-
 **Remaining Stage 7 work**
 
-Batch 3 broker reconciliation and live readiness is next. Batches 4-8 remain unimplemented: tiny-live unlock/risk/kill switch, shadow-live reports, assistant broker-safety integration, broker safety UI, and final Stage 7 verification.
+- Batch 3: broker reconciliation and live-readiness checks.
+- Batch 4: tiny-live unlock, strict limits, live risk manager, and kill switch.
+- Batch 5: shadow-live reporting.
+- Batch 6: assistant broker-safety integration.
+- Batch 7: broker safety UI.
+- Batch 8: Stage 7 final verification.
 
-This batch is complete. The next batch can begin.
+Stage 7 Batch 2 is complete. Batch 3 can begin.

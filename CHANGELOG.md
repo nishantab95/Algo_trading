@@ -1,13 +1,15 @@
 # Changelog
-## Unreleased - Stage 7 Batch 2 broker modes and broker factory
+## Unreleased - Stage 7 Batch 2 Broker Modes and Broker Factory
 
 - Added explicit broker modes: `live_disabled`, `paper`, `broker_readonly`, `shadow_live`, and `tiny_live`, defaulting to `live_disabled`.
-- Hardened broker capabilities and added a safe factory/service layer that never returns `ZerodhaBroker` for Stage 7 Batch 2 modes.
-- Added `MockBroker` for fail-closed non-paper modes and kept paper execution on the local `PaperBroker` only.
-- Added safe broker status, mode, quotes, funds, positions, and holdings APIs; assistant mode switching and broker actions are blocked.
-- Added 12 focused Stage 7 Batch 2 tests. Focused result: `12 passed`; full result: `234 passed` with the exact project interpreter.
-- API smoke passed for the new broker endpoints; no UI work was included in this batch.
-- Live orders remain disabled. Tiny-live is locked and cannot place real orders.
+- Added broker-specific safe errors and lightweight sanitized broker models for status, order request shape, quote shape, read-only state, and future reconciliation-ready state.
+- Hardened `BaseBroker` with explicit connect, read, order, trade, quote, mutation, and health-check methods that fail closed by default.
+- Hardened `MockBroker` with connected/disconnected state, profile/funds/holdings/positions/orders/trades/quotes fixtures, read failure simulation, broker rejection simulation, and mutation-attempt counters.
+- Added a safe factory and canonical `app/services/broker_service.py`; `app/brokers/broker_service.py` remains a compatibility import.
+- Expanded safe broker APIs for status, mode, profile, funds, holdings, positions, orders, trades, and symbol quote reads. No route places live orders, changes credentials, or unlocks tiny-live.
+- Added 26 focused Stage 7 Batch 2 tests. Focused result: `26 passed`; final full result: `248 passed` with the exact project interpreter.
+- API smoke passed for the expanded broker endpoints; no UI work was included in this batch.
+- Live orders remain disabled. Tiny-live is locked. Assistant actors cannot switch to live-like modes or execute broker actions.
 
 ## Unreleased â€” Stage 1â€“6 browser UI acceptance gate
 

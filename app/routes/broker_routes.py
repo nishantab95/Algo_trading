@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 from flask import Blueprint, request
 
+from app.brokers.broker_errors import (
+    BrokerError,
+    BrokerModeError,
+    BrokerNotConnectedError,
+    BrokerPermissionError,
+    BrokerReadOnlyError,
+    BrokerUnavailableError,
+)
 from app.brokers.broker_factory import BrokerFactory
-from app.brokers.broker_service import BrokerService
 from app.core.config import SETTINGS
-from app.core.errors import BrokerError
 from app.routes.common import failure, success
+from app.services.broker_service import BrokerService
 
 
 def create_broker_blueprint(database, broker_service: BrokerService | None = None):
@@ -19,9 +29,26 @@ def create_broker_blueprint(database, broker_service: BrokerService | None = Non
     def actor() -> str:
         return str(body().get("actor", "user")).strip().lower() or "user"
 
+    def broker_failure(exc: Exception):
+        if isinstance(exc, (BrokerPermissionError, BrokerReadOnlyError)):
+            return failure(exc, 403)
+        if isinstance(exc, BrokerModeError):
+            return failure(exc, 400)
+        if isinstance(exc, (BrokerNotConnectedError, BrokerUnavailableError)):
+            return failure(exc, 503)
+        return failure(exc, 400)
+
+    def read_endpoint(callback: Callable[[], Any]):
+        try:
+            return success(callback())
+        except BrokerError as exc:
+            return broker_failure(exc)
+        except Exception as exc:
+            return failure(exc, 400)
+
     @blueprint.get("/api/broker/status")
     def broker_status():
-        return success(service.status())
+        return success(service.get_status())
 
     @blueprint.get("/api/broker/modes")
     def broker_modes():
@@ -36,27 +63,43 @@ def create_broker_blueprint(database, broker_service: BrokerService | None = Non
         payload = body()
         try:
             return success(service.set_mode(str(payload.get("mode", "")), actor()))
-        except PermissionError as exc:
-            return failure(exc, 403)
-        except (BrokerError, ValueError) as exc:
+        except BrokerError as exc:
+            return broker_failure(exc)
+        except ValueError as exc:
             return failure(exc, 400)
+
+    @blueprint.get("/api/broker/profile")
+    def broker_profile():
+        return read_endpoint(service.profile)
+
+    @blueprint.get("/api/broker/funds")
+    def broker_funds():
+        return read_endpoint(service.funds)
+
+    @blueprint.get("/api/broker/holdings")
+    def broker_holdings():
+        return read_endpoint(service.holdings)
+
+    @blueprint.get("/api/broker/positions")
+    def broker_positions():
+        return read_endpoint(service.positions)
+
+    @blueprint.get("/api/broker/orders")
+    def broker_orders():
+        return read_endpoint(service.orders)
+
+    @blueprint.get("/api/broker/trades")
+    def broker_trades():
+        return read_endpoint(service.trades)
+
+    @blueprint.get("/api/broker/quote/<symbol>")
+    def broker_quote(symbol: str):
+        return read_endpoint(lambda: service.quote(symbol))
 
     @blueprint.get("/api/broker/quotes")
     def broker_quotes():
         symbols = request.args.get("symbols", "")
-        return success(service.quotes([symbol for symbol in symbols.split(",") if symbol.strip()]))
-
-    @blueprint.get("/api/broker/funds")
-    def broker_funds():
-        return success(service.funds())
-
-    @blueprint.get("/api/broker/positions")
-    def broker_positions():
-        return success(service.positions())
-
-    @blueprint.get("/api/broker/holdings")
-    def broker_holdings():
-        return success(service.holdings())
+        return read_endpoint(lambda: service.quotes([symbol for symbol in symbols.split(",") if symbol.strip()]))
 
     @blueprint.post("/api/connect_zerodha")
     def connect_zerodha():
