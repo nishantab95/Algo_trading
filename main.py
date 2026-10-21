@@ -8,10 +8,8 @@ import json
 import os
 import sys
 import threading
-import traceback
 from datetime import datetime
-
-import pandas as pd
+from pathlib import Path
 
 import config_settings as cfg
 
@@ -19,70 +17,13 @@ PROJECT_ROOT = cfg.PROJECT_ROOT
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-import bot
-import data
-import preprocessing
-import report
-import strategy as strategy_selector
-
-from app import bootstrap_application
-from app.core.config import SETTINGS
-from app.core.logging_config import log_event
-from app.routes.broker_routes import create_broker_blueprint
-from app.routes.live_routes import create_live_blueprint
-from app.routes.tiny_live_routes import create_tiny_live_blueprint
-from app.routes.shadow_live_routes import create_shadow_live_blueprint
-from app.routes.backtest_routes import create_backtest_blueprint
-from app.routes.strategy_library_routes import create_strategy_library_blueprint
-from app.routes.combo_strategy_routes import create_combo_strategy_blueprint
-from app.routes.assistant_routes import create_assistant_blueprint
-from app.routes.rag_routes import create_rag_blueprint
-from app.routes.profile_routes import create_profile_blueprint
-from app.routes.dashboard_builder_routes import create_dashboard_builder_blueprint
-from app.routes.app_search_routes import create_app_search_blueprint
 from app.routes.dashboard_routes import create_dashboard_blueprint
-from app.routes.data_routes import create_data_blueprint
-from app.routes.paper_routes import create_paper_blueprint
-from app.routes.paper_trading_routes import create_stage5_paper_blueprint
-from app.routes.research_lab_routes import create_research_lab_blueprint
-from app.routes.strategy_routes import create_strategy_blueprint
-from app.services.data_service import DataService
-from app.services.backtest_service import BacktestService
-from app.services.strategy_library_service import StrategyLibraryService
-from app.services.combo_strategy_service import ComboStrategyService
-from app.services.paper_trading_service import PaperTradingService
-from app.services.report_service import ReportService
-from app.brokers.broker_factory import BrokerFactory
-from app.services.broker_service import BrokerService
-from app.services.broker_reconciliation_service import BrokerReconciliationService
-from app.services.live_readiness_service import LiveReadinessService
-from app.live.live_guard import LiveGuard
-from app.live.kill_switch import KillSwitchService
-from app.live.unlock import TinyLiveUnlockService
-from app.live.live_risk import LiveRiskManager
-from app.live.tiny_live_service import TinyLiveService
-from app.live.shadow_live_service import ShadowLiveService
-from app.assistant.action_drafts import ActionDraftService
-from app.assistant.service import AssistantService
-from app.assistant.tool_registry import ToolRegistry
-from app.assistant.tool_executor import ToolExecutor
-from app.assistant.tools.readonly_tools import ReadOnlyTools
-from app.assistant.tools.broker_safety_tools import BrokerSafetyTools
-from app.assistant.tools.trade_history_tools import TradeHistoryService
-from app.backtesting.models import BacktestConfig
-from app.dashboard_builder.dashboard_service import DashboardService
-from app.llm.lmstudio_client import LMStudioClient
-from app.profile.profile_service import TradingProfileService
-from app.rag.indexer import RAGIndexer
-from app.rag.retriever import RAGRetriever
-from app.search.search_service import AppSearchService
-from app.paper.broker import PaperOperationsBroker
-from app.paper.analytics import PaperAnalytics
-from app.paper.reports import PaperReportService
-from app.services.paper_portfolio_service import PaperPortfolioService
-from app.research_lab.experiment import ResearchExperimentService,ResearchDecisionService
-from app.research_lab.experiment_runner import ResearchExperimentRunner
-from app.research_lab.exports import ResearchExportService
+from app.routes.discovery_routes import create_discovery_blueprint
+from app.discovery.service import DiscoveryDataService
+from app.patterns.scanner import PatternScanService
+from app.routes.pattern_routes import create_pattern_blueprint
+from app.fundamentals.service import FundamentalService
+from app.routes.fundamental_routes import create_fundamental_blueprint
 
 PIPELINE_LOCK = threading.Lock()
 
@@ -218,6 +159,14 @@ def _run_full_recalibration() -> None:
 
 
 def _create_legacy_flask_app():
+    """Compatibility alias retained for callers of the former private factory.
+
+    The old route assembly below is intentionally unreachable: it is retained
+    only as historical implementation context while every caller receives the
+    read-only Discovery application.
+    """
+    return create_flask_app()
+
     try:
         from flask import Flask, jsonify, render_template, request
     except ImportError:
@@ -318,108 +267,12 @@ def _create_legacy_flask_app():
     return app
 
 
-# Stage 1 application services are initialized once and backed by SQLite.
-_FOUNDATION = bootstrap_application()
-_DATABASE = _FOUNDATION["database"]
-_BROKER_FACTORY = BrokerFactory(bot.TRADING_ENGINE._latest_price_from_csv, _DATABASE)
-_BROKER_SERVICE = BrokerService(_BROKER_FACTORY)
-_BROKER_RECONCILIATION = BrokerReconciliationService(_DATABASE, _BROKER_SERVICE)
-_KILL_SWITCH = KillSwitchService(_DATABASE)
-_TINY_UNLOCK = TinyLiveUnlockService(_DATABASE)
-_LIVE_GUARD = LiveGuard(_BROKER_RECONCILIATION, _KILL_SWITCH)
-_LIVE_READINESS = LiveReadinessService(_DATABASE, _BROKER_SERVICE, _BROKER_RECONCILIATION, _LIVE_GUARD, _KILL_SWITCH, None, _TINY_UNLOCK)
-_LIVE_RISK = LiveRiskManager(_DATABASE, _BROKER_SERVICE, _BROKER_RECONCILIATION, _LIVE_READINESS, _TINY_UNLOCK, _KILL_SWITCH)
-_LIVE_READINESS.live_risk_manager = _LIVE_RISK
-_TINY_LIVE = TinyLiveService(_BROKER_SERVICE, _TINY_UNLOCK, _LIVE_RISK, _KILL_SWITCH)
-_STRATEGY_SERVICE = _FOUNDATION["strategies"]
-_DATA_SERVICE = DataService()
-_REPORT_SERVICE = ReportService(_DATABASE)
-_PAPER_SERVICE = PaperTradingService(bot.TRADING_ENGINE._latest_price_from_csv, _DATABASE)
-_BACKTEST_SERVICE = BacktestService(_DATABASE)
-_STRATEGY_LIBRARY = StrategyLibraryService(_DATABASE, _BACKTEST_SERVICE)
-_STRATEGY_LIBRARY.initialize()
-_COMBO_SERVICE = ComboStrategyService(_DATABASE, _STRATEGY_LIBRARY, _BACKTEST_SERVICE)
-_COMBO_SERVICE.initialize()
-_PROFILE_SERVICE = TradingProfileService(_DATABASE)
-_DASHBOARD_SERVICE = DashboardService(_DATABASE)
-_RAG_INDEXER = RAGIndexer(_DATABASE, PROJECT_ROOT)
-_RAG_RETRIEVER = RAGRetriever(_DATABASE)
-_APP_SEARCH_SERVICE = AppSearchService(_DATABASE, _RAG_INDEXER)
-_TRADE_HISTORY_SERVICE = TradeHistoryService(_DATABASE)
-_PAPER_OPERATIONS = PaperOperationsBroker(_DATABASE, bot.TRADING_ENGINE._latest_price_from_csv)
-_PAPER_ANALYTICS = PaperAnalytics(_PAPER_OPERATIONS)
-_PAPER_PORTFOLIO = PaperPortfolioService(_PAPER_OPERATIONS)
-_PAPER_REPORTS = PaperReportService(_PAPER_OPERATIONS,_PAPER_ANALYTICS,PROJECT_ROOT)
-_SHADOW_LIVE = ShadowLiveService(_DATABASE, _BROKER_SERVICE, _LIVE_RISK, _PAPER_OPERATIONS)
-_RESEARCH_EXPERIMENTS = ResearchExperimentService(_DATABASE)
-_RESEARCH_DECISIONS = ResearchDecisionService(_DATABASE)
-_RESEARCH_RUNNER = ResearchExperimentRunner(_DATABASE,_RESEARCH_EXPERIMENTS,_BACKTEST_SERVICE)
-_RESEARCH_EXPORTS = ResearchExportService(_DATABASE,PROJECT_ROOT)
-_TOOL_REGISTRY = ToolRegistry()
-_BROKER_SAFETY_TOOLS = BrokerSafetyTools(_BROKER_SERVICE, _BROKER_RECONCILIATION, _LIVE_READINESS, _TINY_LIVE, _SHADOW_LIVE, _KILL_SWITCH)
-_READONLY_TOOLS = ReadOnlyTools(_DATABASE, _PROFILE_SERVICE, _DASHBOARD_SERVICE, _APP_SEARCH_SERVICE, _RAG_RETRIEVER,
-                                _STRATEGY_LIBRARY, _COMBO_SERVICE, _BACKTEST_SERVICE, _PAPER_SERVICE,
-                                _TRADE_HISTORY_SERVICE, lambda: _stage1_state_payload(),_PAPER_OPERATIONS,_PAPER_ANALYTICS,_RESEARCH_EXPERIMENTS,_BROKER_SAFETY_TOOLS)
-
-
-def _run_approved_backtest(payload): return _BACKTEST_SERVICE.run(BacktestConfig(**payload)).summary()
-def _approved_paper_order(payload):
-    if str(payload.get("mode","PAPER")).upper() != "PAPER": raise PermissionError("Assistant orders are paper-only")
-    return _PAPER_OPERATIONS.create_order(payload,approved_by_user=True)
-def _apply_strategy_change(payload):
-    changes=payload.get("changes",payload)
-    if set(changes)-{"enabled","strategy_id"}: raise ValueError("Stage 4 strategy changes are limited to approval-protected enable/disable")
-    return _STRATEGY_LIBRARY.toggle(payload["strategy_id"],bool(changes["enabled"]))
-def _apply_combo_change(payload):
-    return _COMBO_SERVICE.update(payload["combo_id"],payload.get("changes",{}))
-
-def _save_named_config(table,payload):
-    import json, uuid
-    from datetime import datetime, timezone
-    singular="watchlist" if table=="watchlists" else "screener"
-    item_id=str(payload.get("id") or f"{singular}_"+uuid.uuid4().hex[:10])
-    name=str(payload.get("name") or item_id); now=datetime.now(timezone.utc).isoformat()
-    value=payload.get("symbols",[]) if table=="watchlists" else payload.get("config",payload)
-    value_col="symbols_json" if table=="watchlists" else "config_json"
-    with _DATABASE.transaction() as c:
-        c.execute(f"INSERT INTO {table}(id,name,{value_col},created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,{value_col}=excluded.{value_col},updated_at=excluded.updated_at",(item_id,name,json.dumps(value),now,now))
-    return {"id":item_id,"name":name,"value":value}
-
-def _update_risk_setting(payload):
-    allowed={"risk_per_trade_pct","max_daily_loss","max_open_positions"}
-    changes=payload.get("changes",payload)
-    if set(changes)-allowed: raise ValueError("Only profile risk settings may be changed in Stage 4")
-    return _PROFILE_SERVICE.apply(changes)
-
-
-_DRAFT_SERVICE = ActionDraftService(_DATABASE, {
-    "update_profile": _PROFILE_SERVICE.apply,
-    "save_dashboard_layout": _DASHBOARD_SERVICE.save,
-    "delete_dashboard_layout": lambda p: _DASHBOARD_SERVICE.delete(p["layout_id"]),
-    "add_dashboard_widget": lambda p: _DASHBOARD_SERVICE.add_widget(p["layout_id"], p),
-    "remove_dashboard_widget": lambda p: _DASHBOARD_SERVICE.remove_widget(p["layout_id"],p["widget_id"]),
-    "toggle_strategy": lambda p: _STRATEGY_LIBRARY.toggle(p["strategy_id"],bool(p["enabled"])),
-    "toggle_combo": lambda p: _COMBO_SERVICE.toggle(p["combo_id"],bool(p["enabled"])),
-    "apply_strategy_change": _apply_strategy_change,
-    "apply_combo_change": _apply_combo_change,
-    "run_backtest": _run_approved_backtest,
-    "place_paper_order": _approved_paper_order,
-    "cancel_paper_order": lambda p: _PAPER_OPERATIONS.cancel_order(str(p["order_id"])),
-    "reset_paper_account": lambda p: _PAPER_OPERATIONS.reset(p.get("confirm") is True),
-    "add_trade_journal_note": _TRADE_HISTORY_SERVICE.annotate,
-    "save_screener": lambda p: _save_named_config("saved_screeners",p),
-    "update_watchlist": lambda p: _save_named_config("watchlists",p),
-    "update_risk_setting": _update_risk_setting,
-    "exit_paper_position": lambda p: _PAPER_OPERATIONS.exit_position(p["position_id"],p.get("quantity"),p.get("reason","manual_exit"),True,"assistant"),
-    "edit_paper_journal": lambda p: _PAPER_OPERATIONS.update_journal(p["trade_id"],p.get("changes",{})),
-    "update_paper_risk_setting": lambda p: _PAPER_OPERATIONS.update_risk_settings(p.get("changes",p)),
-    "update_strategy_paper_status": lambda p: _PAPER_ANALYTICS.promotion_review(p["strategy_id"],p.get("criteria"),True),
-    "save_research_experiment": lambda p: _RESEARCH_EXPERIMENTS.create(p),
-    "approve_research_decision": lambda p: _RESEARCH_DECISIONS.approve(p["decision_id"],"user"),
-    "reject_research_decision": lambda p: _RESEARCH_DECISIONS.reject(p["decision_id"],"user"),
-})
-_TOOL_EXECUTOR = ToolExecutor(_TOOL_REGISTRY,_READONLY_TOOLS,_DRAFT_SERVICE)
-_ASSISTANT_SERVICE = AssistantService(_DATABASE,LMStudioClient(),_RAG_RETRIEVER,_TOOL_EXECUTOR,_DRAFT_SERVICE,_PROFILE_SERVICE,_TRADE_HISTORY_SERVICE)
+# Trading, broker, assistant, RAG, database bootstrap, and paper-operation
+# services remain preserved in the repository but are deliberately not
+# initialized by the read-only Discovery runtime.
+_DISCOVERY_DATA = DiscoveryDataService(Path(PROJECT_ROOT) / "data" / "discovery")
+_FUNDAMENTALS = FundamentalService(Path(PROJECT_ROOT) / "data" / "discovery" / "fundamentals")
+_PATTERN_SCANNER = PatternScanService(_DISCOVERY_DATA, _FUNDAMENTALS)
 
 
 def _stage1_state_payload() -> dict:
@@ -512,64 +365,71 @@ def _run_stage1_paper_scan() -> dict:
             "orders_placed": placed, **exits, "warnings": warnings, "mode": "PAPER"}
 
 
-# This later definition intentionally replaces the prototype route assembly above.
-def create_flask_app():
-    from flask import Flask
-    app = Flask(__name__, template_folder=os.path.join(PROJECT_ROOT, "templates"), static_folder=os.path.join(PROJECT_ROOT, "static"))
-    app.register_blueprint(create_dashboard_blueprint(_stage1_state_payload))
-    app.register_blueprint(create_stage5_paper_blueprint(_PAPER_OPERATIONS,_PAPER_PORTFOLIO,_PAPER_ANALYTICS,_PAPER_REPORTS))
-    app.register_blueprint(create_research_lab_blueprint(_RESEARCH_EXPERIMENTS,_RESEARCH_RUNNER,_RESEARCH_DECISIONS,_RESEARCH_EXPORTS,_DATABASE))
-    app.register_blueprint(create_data_blueprint(_REPORT_SERVICE))
-    app.register_blueprint(create_strategy_blueprint(_STRATEGY_SERVICE))
-    app.register_blueprint(create_paper_blueprint(_PAPER_SERVICE, _run_stage1_paper_scan))
-    app.register_blueprint(create_broker_blueprint(_DATABASE, _BROKER_SERVICE, _BROKER_RECONCILIATION))
-    app.register_blueprint(create_live_blueprint(_LIVE_READINESS, _KILL_SWITCH))
-    app.register_blueprint(create_tiny_live_blueprint(_TINY_LIVE))
-    app.register_blueprint(create_shadow_live_blueprint(_SHADOW_LIVE))
-    app.register_blueprint(create_backtest_blueprint(_BACKTEST_SERVICE))
-    app.register_blueprint(create_strategy_library_blueprint(_STRATEGY_LIBRARY, _BACKTEST_SERVICE))
-    app.register_blueprint(create_combo_strategy_blueprint(_COMBO_SERVICE, _BACKTEST_SERVICE))
-    app.register_blueprint(create_assistant_blueprint(_ASSISTANT_SERVICE,_DRAFT_SERVICE,_TOOL_REGISTRY))
-    app.register_blueprint(create_rag_blueprint(_RAG_INDEXER,_RAG_RETRIEVER))
-    app.register_blueprint(create_profile_blueprint(_PROFILE_SERVICE,_DRAFT_SERVICE))
-    app.register_blueprint(create_dashboard_builder_blueprint(_DASHBOARD_SERVICE,_DRAFT_SERVICE))
-    app.register_blueprint(create_app_search_blueprint(_APP_SEARCH_SERVICE,_TRADE_HISTORY_SERVICE,_DRAFT_SERVICE))
+def _discovery_state_payload() -> dict:
+    """Only non-trading metadata is exposed by the Stage 1 Discovery home."""
+    return {
+        "mode": "DISCOVERY",
+        "trading_enabled": False,
+        "market_data_provider": "Yahoo Finance",
+        "analysis_available": False,
+        "fundamental_health": "UNKNOWN",
+        "universes": {
+            "nse": _DISCOVERY_DATA.list_symbols("nse"),
+            "us": _DISCOVERY_DATA.list_symbols("us"),
+            "custom": _DISCOVERY_DATA.list_symbols("custom"),
+        },
+    }
 
-    @app.get("/api/get_reports")
-    def get_reports():
-        from app.routes.common import success
-        return success(_reports_payload())
+
+def create_flask_app():
+    """Build the read-only Stock Discovery application.
+
+    The former Trade & Manage blueprints are intentionally not registered.  The
+    request guard also fail-closes old bookmarked mutation URLs, so an omitted
+    route can never fall through to a paper order, exit, broker, or assistant
+    action while Discovery is the active product surface.
+    """
+    from flask import Flask, request
+    from app.routes.common import failure
+
+    app = Flask(
+        __name__,
+        template_folder=os.path.join(PROJECT_ROOT, "templates"),
+        static_folder=os.path.join(PROJECT_ROOT, "static"),
+    )
+    app.register_blueprint(create_dashboard_blueprint(_discovery_state_payload, template_name="discovery.html"))
+    app.register_blueprint(create_discovery_blueprint(_DISCOVERY_DATA))
+    app.register_blueprint(create_pattern_blueprint(_PATTERN_SCANNER))
+    app.register_blueprint(create_fundamental_blueprint(_FUNDAMENTALS))
+
+    @app.before_request
+    def block_state_changes_in_discovery():
+        allowed_discovery_writes = (
+            (request.method == "POST" and request.path in {"/api/discovery/symbols", "/api/discovery/update", "/api/discovery/scan", "/api/discovery/historical-pattern-review"})
+            or (request.method == "POST" and request.path.startswith("/api/discovery/fundamentals/") and request.path.endswith("/refresh"))
+            or (request.method == "DELETE" and request.path.startswith("/api/discovery/symbols/"))
+        )
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"} and not allowed_discovery_writes:
+            return failure(
+                "Trade & Manage actions are disabled while Stock Discovery is read-only.",
+                403,
+            )
+        return None
 
     return app
-
-
-def _startup_maintenance() -> None:
-    """Refresh data/report artifacts without delaying dashboard availability."""
-    try:
-        sync_result = data.download_all()
-        log_event("info", "main", "data_sync", "Raw data synchronization completed", sync_result)
-        if _DATA_SERVICE.reports_stale() or not load_cached_report():
-            log_event("info", "main", "startup_recalibration", "Cached report missing or stale; rebuilding reports")
-            _REPORT_SERVICE.recalibrate()
-            load_cached_report()
-    except Exception as exc:
-        APP_STATE.update({"status":"Warning","last_error":str(exc)})
-        log_event("error", "main", "startup_maintenance_failed", str(exc))
 
 
 def main() -> None:
     cfg.ensure_directories()
 
     print("=" * 80)
-    print("  INTERACTIVE ALGO TRADING TERMINAL")
+    print("  STOCK DISCOVERY")
     print("=" * 80)
     print(f"Dashboard: http://{cfg.DASHBOARD_HOST}:{cfg.DASHBOARD_PORT}")
-    print(f"Data dir : {cfg.DATA_DIR}")
-    print(f"Reports  : {cfg.REPORTS_DIR}")
+    print("Mode     : Read-only Discovery (trading disabled)")
     print("=" * 80)
 
     app = create_flask_app()
-    threading.Thread(target=_startup_maintenance, name="startup-maintenance", daemon=True).start()
     app.run(host=cfg.DASHBOARD_HOST, port=cfg.DASHBOARD_PORT, debug=False, threaded=True)
 
 

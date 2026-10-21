@@ -20,7 +20,9 @@ class Stage1Config:
 
 @dataclass(frozen=True)
 class AssistantConfig:
-    enabled: bool = _env_bool("LLM_ENABLED", True)
+    # The Discovery application must be usable without a model server or API key.
+    # Assistant features remain preserved in their modules, but are opt-in only.
+    enabled: bool = _env_bool("LLM_ENABLED", False)
     provider: str = os.getenv("LLM_PROVIDER", "lmstudio")
     base_url: str = os.getenv("LLM_BASE_URL", "http://localhost:1234/v1").rstrip("/")
     model: str = os.getenv("LLM_MODEL", "qwen3.5-9b")

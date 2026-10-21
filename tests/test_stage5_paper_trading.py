@@ -171,13 +171,14 @@ def test_36_paper_order_never_calls_live_broker(stack):
 def test_37_llm_cannot_place_order_without_approval(stack):
     order=stack.broker.create_order({"symbol":"INFY","side":"BUY","quantity":1,"source":"assistant"});assert order["status"]=="pending_approval" and len(stack.broker.fills())==0
 
-def test_38_main_app_composes_stage5_routes_and_terminal():
+def test_38_main_app_keeps_paper_operations_dormant_in_discovery_mode():
     import main
     app=main.create_flask_app();client=app.test_client();html=client.get("/").get_data(as_text=True)
-    assert "pane-paper-ops" in html and "Paper Trading &amp; Portfolio Operations" in html
-    account=client.get("/api/paper/account").get_json();assert account["success"] and "account_name" in account["data"]
+    assert "Stock Discovery" in html and "Trade &amp; Manage" in html
     rules={rule.rule for rule in app.url_map.iter_rules()}
-    assert {"/api/paper/account/snapshots","/api/paper/orders/<int:order_id>/approve","/api/paper/portfolio/summary","/api/paper/analytics/summary"} <= rules
+    assert "/api/paper/orders" not in rules
+    blocked=client.post("/api/paper/orders",json={"symbol":"INFY","side":"BUY","quantity":1})
+    assert blocked.status_code==403 and blocked.get_json()["success"] is False
 
 def test_39_assistant_routes_paper_exit_and_strategy_review_to_drafts():
     assert route_command("Draft exit for my paper position") == "paper_exit_draft"

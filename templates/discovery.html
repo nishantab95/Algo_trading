@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stock Discovery</title>
+  <link rel="stylesheet" href="/static/css/discovery.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="header">
+      <div>
+        <p class="eyebrow">READ-ONLY RESEARCH</p>
+        <h1>Stock Discovery</h1>
+      </div>
+      <span class="status">Discovery mode</span>
+    </header>
+
+    <nav class="primary-nav" aria-label="Primary navigation">
+      <span class="nav-item active" aria-current="page">Discover</span>
+      <span class="nav-item disabled" aria-disabled="true">Trade &amp; Manage <small>Coming later</small></span>
+    </nav>
+
+    <section class="panel" aria-labelledby="controls-heading">
+      <div class="panel-heading">
+        <div>
+          <h2 id="controls-heading">Discovery controls</h2>
+          <p>Download daily market data for Discovery research. No orders can be created from this page.</p>
+        </div>
+        <span class="notice">Trading disabled</span>
+      </div>
+      <div class="controls">
+        <label>Market / stock universe
+          <select id="universe"><option value="nse">India — NSE seed list</option><option value="us">United States — seed list</option><option value="custom">Custom list</option></select>
+        </label>
+        <label>Market-data provider
+          <select id="provider"><option value="yahoo">Yahoo Finance</option></select>
+        </label>
+        <label>Historical lookback
+          <select id="lookback"><option value="1y">1 year</option><option value="3y">3 years</option><option value="5y">5 years</option></select>
+        </label>
+        <label>Analysis schedule
+          <select disabled><option>Not yet implemented</option></select>
+        </label>
+        <div class="actions">
+          <button type="button" id="update-data">Update Data</button>
+          <button type="button" class="primary" id="analyse-stocks">Analyse Stocks</button>
+        </div>
+      </div>
+      <div class="custom-controls" id="custom-controls" hidden>
+        <label>Exchange <select id="custom-exchange"><option>NSE</option><option>NASDAQ</option><option>NYSE</option><option>TSE</option></select></label>
+        <label>Stock symbol <input id="custom-symbol" placeholder="e.g. AAPL or 7203"></label>
+        <button type="button" id="add-symbol">Add stock</button>
+      </div>
+      <div class="custom-list" id="custom-list" hidden></div>
+      <div class="download-report" id="download-report" aria-live="polite">Select a universe, then update daily data.</div>
+    </section>
+
+    <section class="panel" aria-labelledby="scanner-heading">
+      <div class="panel-heading"><div><h2 id="scanner-heading">Pattern Scanner</h2><p>Only cached daily candles are analysed. Patterns are deterministic research findings, not trade recommendations.</p></div><span class="notice">18 experimental detectors</span></div>
+      <div id="pattern-selection" class="pattern-selection">Loading implemented patterns…</div>
+      <label class="health-filter">Financial health <select id="financial-health-filter"><option value="ALL">All companies</option><option>GREEN</option><option>AMBER</option><option>RISKY</option><option>UNKNOWN</option></select></label>
+      <details class="pattern-catalogue"><summary>Pattern catalogue (55 topics)</summary><div id="pattern-catalogue">Loading catalogue…</div></details>
+      <div class="download-report" id="scan-report" aria-live="polite">Choose implemented patterns, then select Analyse Stocks.</div>
+      <div class="table-wrap"><table><thead><tr><th>Stock</th><th>Exchange</th><th>Pattern</th><th>Direction</th><th>Status</th><th>Formation date</th><th>Confirmation date</th><th>Latest candle</th><th>Important price level</th><th>Financial health</th><th>Valuation</th><th>View details</th></tr></thead><tbody id="scan-results"><tr class="empty-row"><td colspan="12"><strong>No current findings.</strong>Download data and run a scan to evaluate currently forming or recently confirmed patterns.</td></tr></tbody></table></div>
+      <div class="pattern-chart" id="pattern-chart" hidden></div>
+      <section class="fundamental-panel" id="fundamental-panel" hidden><div class="panel-heading"><div><h3>Fundamental Analysis</h3><p id="fundamental-summary"></p></div><button type="button" id="refresh-fundamentals" hidden>Refresh Fundamentals</button></div><pre id="fundamental-details"></pre></section>
+      <pre class="pattern-details" id="pattern-details" hidden></pre>
+    </section>
+
+    <section class="panel results" aria-labelledby="historical-review-heading">
+      <div class="panel-heading">
+        <div>
+          <h2 id="historical-review-heading">Historical Pattern Review</h2>
+          <p>Replays cached daily candles chronologically. Historical evidence never uses today’s fundamental-health classification and does not imply trade outcomes. Current research retains Fundamental Health: <span class="unknown">UNKNOWN</span> until data is available.</p>
+        </div>
+        <button type="button" id="review-history">Review cached history</button>
+      </div>
+      <div class="download-report" id="historical-report" aria-live="polite">Review a cached universe to inspect historical pattern events. No win rates or trade outcomes are calculated.</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Stock</th><th>Exchange</th><th>Pattern</th><th>Direction</th><th>Formation period</th>
+              <th>First detection</th><th>Confirmation</th><th>Invalidation</th><th>Status</th><th>Detector version</th><th>View chart / evidence</th>
+            </tr>
+          </thead>
+          <tbody id="historical-results">
+            <tr class="empty-row">
+              <td colspan="11">
+                <strong>No historical review yet.</strong>
+                Download daily candles, then replay the selected detector definitions from each completed historical date.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>Trading and broker execution are disabled in this Stage 2 Discovery application.</footer>
+  </main>
+  <script src="/static/js/discovery.js"></script>
+</body>
+</html>

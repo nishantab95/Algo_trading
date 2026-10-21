@@ -137,9 +137,10 @@ def test_trade_history_and_search_routes(stack):
 def test_stage4_main_flask_composition_and_dashboard_html():
     import main
     app=main.create_flask_app();client=app.test_client();response=client.get("/");html=response.get_data(as_text=True)
-    assert response.status_code==200 and all(marker in html for marker in ("pane-assistant","pane-search","pane-profile","pane-dashboards"))
+    assert response.status_code==200 and "Stock Discovery" in html and "Trade &amp; Manage" in html
     rules={rule.rule for rule in app.url_map.iter_rules()}
-    assert {"/api/assistant/status","/api/rag/status","/api/search","/api/profile","/api/dashboards","/api/trade-history"} <= rules
+    assert {"/api/discovery/patterns","/api/discovery/scan","/api/discovery/historical-pattern-review"} <= rules
+    assert not {"/api/assistant/status","/api/rag/status","/api/search","/api/profile","/api/dashboards","/api/trade-history"} & rules
 
 def test_stage4_main_process_serves_http_with_project_interpreter():
     import os,subprocess,sys,time
