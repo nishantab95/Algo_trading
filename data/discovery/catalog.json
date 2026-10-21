@@ -1,0 +1,38 @@
+{
+  "custom_symbols": [],
+  "symbols": {
+    "NASDAQ:AAPL": {
+      "adjustment": "unadjusted OHLCV; Yahoo Adj Close retained when supplied",
+      "currency": "USD",
+      "error": null,
+      "last_updated": "2026-10-21T09:10:48.556738+00:00",
+      "latest_date": "2026-10-20",
+      "provider_symbol": "AAPL",
+      "source": "yahoo",
+      "status": "current",
+      "timezone": "America/New_York"
+    },
+    "NSE:RELIANCE": {
+      "adjustment": "unadjusted OHLCV; Yahoo Adj Close retained when supplied",
+      "currency": "INR",
+      "error": null,
+      "last_updated": "2026-10-21T09:10:47.555017+00:00",
+      "latest_date": "2026-10-21",
+      "provider_symbol": "RELIANCE.NS",
+      "source": "yahoo",
+      "status": "current",
+      "timezone": "Asia/Kolkata"
+    },
+    "TSE:7203": {
+      "adjustment": "unadjusted OHLCV; Yahoo Adj Close retained when supplied",
+      "currency": "JPY",
+      "error": null,
+      "last_updated": "2026-10-21T09:10:49.521478+00:00",
+      "latest_date": "2026-10-21",
+      "provider_symbol": "7203.T",
+      "source": "yahoo",
+      "status": "current",
+      "timezone": "Asia/Tokyo"
+    }
+  }
+}
